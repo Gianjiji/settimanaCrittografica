@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Fascicolo non trovato{% endblock %}
+
+{% block content %}
+<section class="frontespizio">
+  <p class="numero-fascicolo">Numero esaurito</p>
+  <h1>Questo fascicolo non esiste</h1>
+  <p class="istruzioni">I fascicoli hanno la forma anno trattino W settimana, per esempio 2026-W33.</p>
+  <p class="verso-soluzioni"><a href="{{ url_for('issue_page', issue_id=current) }}">Vai al fascicolo di questa settimana</a></p>
+</section>
+{% endblock %}

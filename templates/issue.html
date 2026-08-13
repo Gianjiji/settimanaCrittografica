@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Fascicolo {{ issue.issue_id }}{% endblock %}
+
+{% block content %}
+<section class="frontespizio">
+  <p class="numero-fascicolo">Fascicolo {{ issue.issue_id }}</p>
+  <h1>Nove schede e una parola</h1>
+  <p class="settimana">{{ issue.date_range }}</p>
+  <p class="istruzioni">Risolvi le nove schede. Ogni scheda produce un numero: la loro somma, ridotta
+  modulo 26, è la chiave di Cesare che scopre la parola dell'ultima pagina. Se la parola non ha senso,
+  da qualche parte c'è un conto sbagliato.</p>
+</section>
+
+{% for section in sections %}
+<section class="sezione">
+  <h2><span class="grado grado-{{ section.difficulty }}"></span>{{ section.name }}</h2>
+  <p class="sezione-nota">{{ section.blurb }}</p>
+
+  {% for puzzle in section.puzzles %}
+  <article class="scheda {% if puzzle.number in solved %}risolta{% endif %}"
+           id="scheda-{{ puzzle.number }}">
+    <div class="scheda-testata">
+      <span class="scheda-numero">{{ "%02d"|format(puzzle.number) }}</span>
+      <span class="scheda-famiglia">{{ puzzle.family }}</span>
+      <span class="scheda-tempo">{{ puzzle.minutes }} min</span>
+    </div>
+    <h3>{{ puzzle.title }}</h3>
+    <p class="consegna">{{ puzzle.statement }}</p>
+
+    <dl class="dati">
+      {% for label, value in puzzle.given %}
+      <div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>
+      {% endfor %}
+    </dl>
+
+    <form class="risposta" data-issue="{{ issue.issue_id }}" data-number="{{ puzzle.number }}">
+      {% for field in puzzle.fields %}
+      <label>
+        <span>{{ field.label }}</span>
+        <input type="text" inputmode="text" autocomplete="off" spellcheck="false"
+               data-index="{{ loop.index0 }}" placeholder="{{ field.placeholder }}">
+      </label>
+      {% endfor %}
+      <button type="submit">Verifica</button>
+      <p class="esito" role="status"></p>
+    </form>
+
+    <p class="contributo">Alla parola finale porta <strong>{{ puzzle.meta_label }}</strong>.</p>
+
+    <details class="aiuti">
+      <summary>Aiuti</summary>
+      {% for hint in puzzle.hints %}
+      <details class="aiuto">
+        <summary>Aiuto {{ loop.index }}{% if loop.index == 1 %}, la procedura{% elif loop.index == 2 %}, il passo che blocca{% else %}, quasi la soluzione{% endif %}</summary>
+        <p>{{ hint }}</p>
+      </details>
+      {% endfor %}
+    </details>
+  </article>
+  {% endfor %}
+</section>
+{% endfor %}
+
+<section class="sezione finale">
+  <h2>La parola della settimana</h2>
+  <p class="sezione-nota">Somma le nove risposte numeriche, riduci modulo 26 e usa il risultato come
+  chiave di Cesare per decifrare.</p>
+  <p class="caselle">{% for ch in issue.meta.ciphertext %}<span>{{ ch }}</span>{% endfor %}</p>
+  <form class="risposta parola" data-issue="{{ issue.issue_id }}">
+    <label>
+      <span>Parola in chiaro</span>
+      <input type="text" autocomplete="off" spellcheck="false" placeholder="una parola sola">
+    </label>
+    <button type="submit">Verifica</button>
+    <p class="esito" role="status"></p>
+  </form>
+</section>
+
+<section class="tascabile">
+  <h2>Tabellina tascabile</h2>
+  <p class="sezione-nota">Gli unici inversi che servono in questo fascicolo. Impararli a memoria vale
+  più di qualunque appunto.</p>
+  {% for modulo, table in inverse_tables.items() %}
+  <p class="inversi"><strong>Z{{ modulo }}</strong>
+    {% for a, inv in table.items() %}<span>{{ a }} e {{ inv }}</span>{% endfor %}
+  </p>
+  {% endfor %}
+</section>
+
+<p class="verso-soluzioni">
+  <a href="{{ url_for('solutions_page', issue_id=issue.issue_id) }}">Soluzioni ragionate</a>
+  <span>da aprire dopo aver provato, non prima</span>
+</p>
+{% endblock %}

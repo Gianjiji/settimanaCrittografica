@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Soluzioni {{ issue.issue_id }}{% endblock %}
+
+{% block content %}
+<section class="frontespizio">
+  <p class="numero-fascicolo">Soluzioni del fascicolo {{ issue.issue_id }}</p>
+  <h1>Come si arriva ai numeri</h1>
+  <p class="istruzioni">Ogni passaggio è scritto nella forma che vale punti all'esame: dati, formula,
+  conto, verifica. Copiare solo il risultato finale, all'esame, vale poco.</p>
+</section>
+
+{% for section in sections %}
+<section class="sezione">
+  <h2><span class="grado grado-{{ section.difficulty }}"></span>{{ section.name }}</h2>
+  {% for puzzle in section.puzzles %}
+  <article class="scheda soluzione">
+    <div class="scheda-testata">
+      <span class="scheda-numero">{{ "%02d"|format(puzzle.number) }}</span>
+      <span class="scheda-famiglia">{{ puzzle.family }}</span>
+      <span class="scheda-tempo">{{ puzzle.meta_label }} = {{ puzzle.meta_value }}</span>
+    </div>
+    <h3>{{ puzzle.title }}</h3>
+    <dl class="dati">
+      {% for label, value in puzzle.given %}
+      <div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>
+      {% endfor %}
+    </dl>
+    <ol class="passaggi">
+      {% for step in puzzle.steps %}<li>{{ step }}</li>{% endfor %}
+    </ol>
+    <p class="risultato">
+      {% for field in puzzle.fields %}<span>{{ field.label }} = {{ field.value }}</span>{% endfor %}
+    </p>
+  </article>
+  {% endfor %}
+</section>
+{% endfor %}
+
+<section class="sezione finale">
+  <h2>La parola della settimana</h2>
+  <ol class="passaggi">
+    {% for step in issue.meta.steps %}<li>{{ step }}</li>{% endfor %}
+  </ol>
+  <p class="caselle">{% for ch in issue.meta.word %}<span>{{ ch }}</span>{% endfor %}</p>
+</section>
+
+<p class="verso-soluzioni">
+  <a href="{{ url_for('issue_page', issue_id=issue.issue_id) }}">Torna al fascicolo</a>
+</p>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Arretrati{% endblock %}
+
+{% block content %}
+<section class="frontespizio">
+  <p class="numero-fascicolo">Arretrati</p>
+  <h1>Le ultime dodici settimane</h1>
+  <p class="istruzioni">Ogni fascicolo è generato dal numero della settimana, quindi resta sempre
+  uguale a se stesso: puoi riprenderlo mesi dopo e ritrovare le stesse schede.</p>
+</section>
+
+<ul class="elenco-arretrati">
+  {% for issue in issues %}
+  <li>
+    <a href="{{ url_for('issue_page', issue_id=issue.issue_id) }}">{{ issue.issue_id }}</a>
+    <span>{{ issue.date_range }}</span>
+    <a class="secondario" href="{{ url_for('solutions_page', issue_id=issue.issue_id) }}">soluzioni</a>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

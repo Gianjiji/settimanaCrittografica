@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Registro errori{% endblock %}
+
+{% block content %}
+<section class="frontespizio">
+  <p class="numero-fascicolo">Registro errori</p>
+  <h1>Dove perdi punti</h1>
+  <p class="istruzioni">Percentuale di risposte sbagliate per famiglia e per grado. La riga con il
+  numero più alto è l'argomento su cui conviene passare la prossima mezz'ora.</p>
+</section>
+
+{% if rows %}
+<table class="registro">
+  <thead>
+    <tr><th>Famiglia</th><th>Grado</th><th>Tentativi</th><th>Corrette</th><th>Errori</th></tr>
+  </thead>
+  <tbody>
+  {% for row in rows %}
+    <tr class="{% if row.error_rate >= 50 %}allarme{% endif %}">
+      <td>{{ row.kind }}</td>
+      <td>{{ row.difficulty }}</td>
+      <td>{{ row.total }}</td>
+      <td>{{ row.ok }}</td>
+      <td>{{ row.error_rate }} per cento</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="vuoto">Nessun tentativo registrato. Apri il fascicolo e verifica una scheda: da lì in poi
+il registro si riempie da solo.</p>
+{% endif %}
+{% endblock %}

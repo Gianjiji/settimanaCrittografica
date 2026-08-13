@@ -1,0 +1,219 @@
+:root {
+  --carta: #fbfbf7;
+  --quadretto: rgba(22, 37, 90, 0.09);
+  --inchiostro: #16255a;
+  --penna: #274ea8;
+  --timbro: #a8262b;
+  --matita: #6c7480;
+  --tratto: #d5d8d0;
+  --evidenzia: #f7edb0;
+  --mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 0 1rem 4rem;
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--inchiostro);
+  background-color: var(--carta);
+  background-image:
+    repeating-linear-gradient(to right, var(--quadretto) 0 1px, transparent 1px 22px),
+    repeating-linear-gradient(to bottom, var(--quadretto) 0 1px, transparent 1px 22px);
+}
+
+main, .testata, .chiusura { max-width: 44rem; margin: 0 auto; }
+
+.testata { padding: 1.6rem 0 0.8rem; border-bottom: 3px solid var(--timbro); }
+.testata-riga { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+
+.marchio {
+  font-family: var(--mono);
+  font-size: clamp(1.15rem, 5.2vw, 1.9rem);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--inchiostro);
+  text-decoration: none;
+  line-height: 1.15;
+}
+
+.prezzo {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--timbro);
+  white-space: nowrap;
+}
+
+.occhiello { margin: 0.4rem 0 0.9rem; font-size: 0.85rem; color: var(--matita); }
+
+.menu { display: flex; gap: 1.4rem; font-family: var(--mono); font-size: 0.72rem;
+        letter-spacing: 0.12em; text-transform: uppercase; }
+.menu a { color: var(--penna); text-decoration: none; padding-bottom: 0.4rem; }
+.menu a:hover { border-bottom: 2px solid var(--penna); }
+
+.frontespizio { padding: 2.2rem 0 1.4rem; }
+.numero-fascicolo { margin: 0; font-family: var(--mono); font-size: 0.7rem;
+                    letter-spacing: 0.2em; text-transform: uppercase; color: var(--timbro); }
+.frontespizio h1 { margin: 0.35rem 0 0.3rem; font-size: clamp(1.7rem, 7vw, 2.5rem);
+                   font-weight: 700; letter-spacing: -0.015em; }
+.settimana { margin: 0 0 1rem; font-family: var(--mono); font-size: 0.82rem; color: var(--matita); }
+.istruzioni { margin: 0; max-width: 34rem; }
+
+.sezione { margin-top: 2.6rem; }
+.sezione h2 { display: flex; align-items: center; font-family: var(--mono); font-size: 0.82rem;
+              letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 0.2rem;
+              padding-bottom: 0.5rem; border-bottom: 1px solid var(--inchiostro); }
+.sezione-nota { margin: 0.5rem 0 1.2rem; font-size: 0.88rem; color: var(--matita); }
+
+.grado {
+  display: inline-block; width: 35px; height: 9px; margin-right: 0.7rem; vertical-align: middle;
+  --q1: var(--tratto); --q2: var(--tratto); --q3: var(--tratto);
+  background-image: linear-gradient(var(--q1), var(--q1)),
+                    linear-gradient(var(--q2), var(--q2)),
+                    linear-gradient(var(--q3), var(--q3));
+  background-size: 9px 9px; background-position: 0 0, 13px 0, 26px 0; background-repeat: no-repeat;
+}
+.grado-1 { --q1: var(--inchiostro); }
+.grado-2 { --q1: var(--inchiostro); --q2: var(--inchiostro); }
+.grado-3 { --q1: var(--inchiostro); --q2: var(--inchiostro); --q3: var(--inchiostro); }
+
+.scheda {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--inchiostro);
+  box-shadow: 4px 4px 0 rgba(22, 37, 90, 0.08);
+  padding: 1.1rem 1.2rem 1.3rem;
+  margin-bottom: 1.6rem;
+}
+
+.scheda-testata { display: flex; align-items: center; gap: 0.8rem; font-family: var(--mono);
+                  font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
+                  color: var(--matita); }
+.scheda-numero { background: var(--inchiostro); color: #fff; padding: 0.15rem 0.45rem;
+                 letter-spacing: 0.06em; }
+.scheda-tempo { margin-left: auto; }
+.scheda h3 { margin: 0.7rem 0 0.4rem; font-size: 1.18rem; }
+.consegna { margin: 0 0 1rem; }
+
+.dati { margin: 0 0 1.1rem; border-top: 1px dashed var(--tratto);
+        border-bottom: 1px dashed var(--tratto); padding: 0.7rem 0; }
+.dati > div { display: flex; gap: 0.8rem; padding: 0.15rem 0; }
+.dati dt { flex: 0 0 9rem; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em;
+           color: var(--matita); font-family: var(--mono); }
+.dati dd { margin: 0; font-family: var(--mono); font-size: 1.02rem; font-weight: 600;
+           letter-spacing: 0.04em; }
+
+.risposta label { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.6rem; }
+.risposta label span { flex: 0 0 9rem; font-family: var(--mono); font-size: 0.75rem;
+                       text-transform: uppercase; letter-spacing: 0.08em; }
+.risposta input {
+  flex: 1 1 auto; min-width: 0; font-family: var(--mono); font-size: 1rem; padding: 0.5rem 0.6rem;
+  border: 1px solid var(--inchiostro); background: var(--evidenzia); color: var(--inchiostro);
+  border-radius: 0;
+}
+.risposta input.errato { border-color: var(--timbro); background: #fbe9e6; }
+.risposta button {
+  font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 0.55rem 1.2rem; border: 1px solid var(--inchiostro); background: var(--inchiostro);
+  color: #fff; cursor: pointer; border-radius: 0;
+}
+.risposta button:hover { background: var(--penna); border-color: var(--penna); }
+.esito { margin: 0.6rem 0 0; font-size: 0.85rem; min-height: 1.2rem; color: var(--timbro); }
+
+.scheda.risolta::after {
+  content: "risolto";
+  position: absolute; top: 0.9rem; right: 1rem;
+  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--timbro); border: 2px solid var(--timbro); padding: 0.2rem 0.5rem;
+  transform: rotate(-7deg); opacity: 0.85;
+  animation: timbra 220ms ease-out;
+}
+@keyframes timbra {
+  from { transform: rotate(-7deg) scale(1.6); opacity: 0; }
+  to { transform: rotate(-7deg) scale(1); opacity: 0.85; }
+}
+
+.aiuti { margin-top: 1rem; border-top: 1px solid var(--tratto); padding-top: 0.7rem; }
+.aiuti > summary { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em;
+                   text-transform: uppercase; color: var(--penna); cursor: pointer; }
+.aiuto { margin: 0.7rem 0 0 0.2rem; border-left: 2px solid var(--tratto); padding-left: 0.8rem; }
+.aiuto > summary { font-size: 0.82rem; color: var(--matita); cursor: pointer; }
+.aiuto p { margin: 0.4rem 0 0; font-size: 0.92rem; }
+
+.finale { margin-top: 3rem; }
+.caselle { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 1.2rem 0 1.4rem; }
+.caselle span {
+  width: 2.1rem; height: 2.6rem; display: grid; place-items: center;
+  border: 1px solid var(--inchiostro); background: #fff;
+  font-family: var(--mono); font-size: 1.15rem; font-weight: 700; letter-spacing: 0;
+}
+
+.tascabile { margin-top: 3rem; border: 1px dashed var(--inchiostro); padding: 1rem 1.2rem 1.2rem; }
+.tascabile h2 { border: 0; padding: 0; }
+.inversi { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: baseline; margin: 0.6rem 0; }
+.inversi strong { font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.1em; }
+.inversi span { font-family: var(--mono); font-size: 0.78rem; border: 1px solid var(--tratto);
+                padding: 0.1rem 0.35rem; }
+
+.passaggi { margin: 0.8rem 0 1rem; padding-left: 1.2rem; }
+.passaggi li { margin-bottom: 0.45rem; font-size: 0.95rem; }
+.risultato { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0; padding-top: 0.7rem;
+             border-top: 1px solid var(--tratto); font-family: var(--mono); font-weight: 700; }
+
+.verso-soluzioni { margin: 2.6rem 0 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.verso-soluzioni a { font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.1em;
+                     text-transform: uppercase; color: var(--penna); }
+.verso-soluzioni span { font-size: 0.82rem; color: var(--matita); }
+
+.elenco-arretrati { list-style: none; padding: 0; margin: 1.5rem 0 0; }
+.elenco-arretrati li { display: flex; align-items: baseline; gap: 0.9rem; padding: 0.7rem 0;
+                       border-bottom: 1px dashed var(--tratto); }
+.elenco-arretrati a { font-family: var(--mono); color: var(--penna); text-decoration: none; }
+.elenco-arretrati span { font-size: 0.85rem; color: var(--matita); }
+.elenco-arretrati .secondario { margin-left: auto; font-size: 0.75rem; }
+
+.registro { width: 100%; border-collapse: collapse; margin-top: 1.6rem; font-size: 0.9rem; }
+.registro th, .registro td { text-align: left; padding: 0.55rem 0.4rem;
+                             border-bottom: 1px solid var(--tratto); }
+.registro th { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.1em;
+               text-transform: uppercase; color: var(--matita); }
+.registro td { font-family: var(--mono); }
+.registro .allarme td { color: var(--timbro); font-weight: 700; }
+.vuoto { margin-top: 1.6rem; color: var(--matita); }
+
+.chiusura { margin-top: 4rem; padding-top: 1rem; border-top: 1px solid var(--tratto);
+            font-size: 0.78rem; color: var(--matita); }
+
+a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible {
+  outline: 3px solid var(--penna); outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .dati > div { flex-direction: column; gap: 0.1rem; }
+  .dati dt { flex: none; }
+  .risposta label { flex-direction: column; align-items: stretch; gap: 0.25rem; }
+  .risposta label span { flex: none; }
+  .risposta button { width: 100%; }
+  .menu { gap: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scheda.risolta::after { animation: none; }
+}
+
+@media print {
+  body { background: #fff; padding: 0; font-size: 11pt; }
+  .menu, .risposta, .aiuti, .chiusura, .verso-soluzioni, .prezzo { display: none; }
+  .scheda { box-shadow: none; page-break-inside: avoid; }
+}
+
+.contributo { margin: 1rem 0 0; font-size: 0.8rem; color: var(--matita);
+              border-left: 3px solid var(--evidenzia); padding-left: 0.6rem; }
