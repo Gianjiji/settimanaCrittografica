@@ -41,7 +41,8 @@ dedicati.
       composta. Modulo e property test fatti; **registrazione bloccata**, vedi `## Bloccato`.
 - [~] Rete di Feistel a due round con funzione di round elementare, su otto bit.
       Modulo e property test fatti; **registrazione bloccata**, vedi `## Bloccato`.
-- [ ] Cifrario di Hill due per due: validita' della matrice e cifratura di una parola breve.
+- [~] Cifrario di Hill due per due: validita' della matrice e cifratura di una parola breve.
+      Modulo e property test fatti; **registrazione bloccata**, vedi `## Bloccato`.
 - [ ] El Gamal in Z11: chiave pubblica, cifratura e decifratura con k piccolo.
 
 **P3, solo dopo che P0 e P1 sono chiusi**
@@ -52,8 +53,9 @@ dedicati.
 
 ## Bloccato
 
-**P2, registrazione dei nuovi generatori in `GENERATORS`.** Il modulo Diffie-Hellman e' scritto
-e testato, ma **non registrato**, perche' registrarlo violerebbe l'invariante 2.
+**P2, registrazione dei nuovi generatori in `GENERATORS`.** I moduli `diffie_hellman`,
+`affine`, `feistel` e `hill` sono scritti e testati, ma **nessuno e' registrato**, perche' registrarli
+violerebbe l'invariante 2.
 
 Cosa ho provato: aggiungere un quarto modulo a `GENERATORS`.
 
@@ -84,8 +86,8 @@ prodotto, non il codice:
    e chiave finale. Costo: gli arretrati cambiano comunque, quindi va accettato che i
    fascicoli gia' risolti non siano piu' riproducibili. E' una decisione editoriale.
 
-Finche' non si sceglie, il modulo resta pronto e verificato ma inattivo. Le altre quattro voci
-P2 sono nella stessa condizione: scriverle e' utile, registrarle no.
+Finche' non si sceglie, i moduli restano pronti e verificati ma inattivi. Le voci P2 non
+ancora scritte sono nella stessa condizione: scriverle e' utile, registrarle no.
 
 ## Proposte scartate per vincolo di dipendenze
 
@@ -667,9 +669,27 @@ libreria standard e `affine` ricalcola a mano nei test, quindi li' l'oracolo e' 
 indipendente, ma vale la pena ricontrollarlo se qualcuno li tocca.
 Gate: unittest 267 test OK, smoke OK. 52 arretrati ancora a 9 schede.
 
+### Iterazione 19, 2026-08-13
+Task: quarta voce P2, cifrario di Hill due per due. Stesso blocco sulla registrazione.
+Fatto: `crypto_puzzles/hill.py` e `tests/test_hill.py`, 24 test su 400 semi per difficolta'.
+Le tre schede: quale delle due matrici puo' fare da chiave e con che determinante (facile),
+cifrare una coppia di lettere (media), costruire la matrice di decifratura (difficile).
+Applicata subito la lezione dell'iterazione 18: **i test non usano gli helper del modulo**.
+`reference_determinant` e' riscritto nel test, e l'inversa e' verificata moltiplicandola per
+la matrice e pretendendo l'identita' modulo 26, non confrontandola con `hill.inverse_matrix`.
+Verificato anche che con una chiave valida la cifratura sia una biiezione su tutte le 676
+coppie di lettere.
+Errore mio, banale ma bloccante: nei `steps` avevo sei argomenti per cinque segnaposto, e
+`generate` alzava `TypeError` su ogni seme della difficolta' 3. I test lo hanno preso subito.
+Mutation testing, cinque sabotaggi tutti colti: determinante col segno sbagliato (5214
+fallimenti), matrice trasposta in cifratura (358), inversa senza scambio della diagonale
+(358), nessun controllo di invertibilita' (542 piu' 14 errori), matrice indicata sbagliata
+(800).
+Gate: unittest 291 test OK, smoke OK.
+
 ## Stato finale
 
-Chiuse **tutte** le voci P0, P1 e P3. Delle cinque P2, tre hanno modulo e property test
-completi ma **non registrati**, e due non sono state scritte: tutte e cinque dipendono dalla
+Chiuse **tutte** le voci P0, P1 e P3. Delle cinque P2, quattro hanno modulo e property test
+completi ma **non registrati**, e una non e' stata scritta: tutte e cinque dipendono dalla
 stessa decisione editoriale descritta in `## Bloccato`, che non e' una scelta tecnica.
-Da 14 test a 267, piu' `tools/smoke.py` con 8 controlli su tutte le rotte.
+Da 14 test a 291, piu' `tools/smoke.py` con 8 controlli su tutte le rotte.
