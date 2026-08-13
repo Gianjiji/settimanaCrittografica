@@ -22,7 +22,7 @@
 - [x] Invio con tasto Invio su ogni campo, e focus che resta dove serve dopo la verifica.
 - [x] Controllo del layout a 360 pixel di larghezza: nessun overflow orizzontale, campi e
       bottoni raggiungibili con il pollice.
-- [ ] Messaggio di errore quando la verifica fallisce per rete assente, distinto da risposta
+- [x] Messaggio di errore quando la verifica fallisce per rete assente, distinto da risposta
       sbagliata.
 - [ ] Stampa: il fascicolo su carta deve restare leggibile e senza elementi interattivi.
 - [ ] Contatore di schede risolte in cima al fascicolo.
@@ -307,3 +307,35 @@ Conseguenza onesta: i test di questa voce sono statici, ragionano sul CSS dichia
 dati dei generatori. Le altezze reali dipendono anche dal font di sistema, quindi il
 controllo a occhio su un telefono vero resta da fare.
 Gate: unittest 112 test OK, smoke OK. Albero pulito.
+
+### Iterazione 9, 2026-08-13
+Task: messaggio di rete assente distinto dalla risposta sbagliata.
+Fatto: `tests/test_client_errors.py`, 10 test. Riscritta la gestione errori in `app.js`.
+Trovato: il difetto era piu' largo di come e' scritto nel backlog. `post()` **non guardava mai
+`response.ok`**, e il `.catch` finale attribuiva a "offline" qualunque fallimento. Quindi un
+errore del server finiva nel ramo della risposta sbagliata e mostrava "Non torna. Rileggi
+l'aiuto 2", cioe' **il lettore veniva accusato di un errore che non aveva fatto**.
+Precisazione, perche' prima l'avevo detta male: con un 500 i campi non venivano dipinti di
+rosso. `data.fields` e' `undefined`, e `markFields` in quel caso ripulisce invece di segnare.
+Il danno era solo, ma seriamente, nel messaggio.
+Ora tre esiti separati: risposta sbagliata (verdetto vero), richiesta mai arrivata al server
+(`OFFLINE`), server che risponde qualcosa di inutilizzabile (`SERVER`). I due messaggi di
+fallimento dicono esplicitamente che la risposta **non e' stata verificata**, e i marchi sui
+campi vengono ripuliti, perche' un rosso rimasto da un tentativo precedente si leggerebbe
+come verdetto. Un 404 o 400 che porta con se' `{"error": ...}` resta trattato come risposta
+legittima e mostra quel messaggio: e' un rifiuto motivato, non un guasto.
+Verifica vera con node, stesso metodo dell'iterazione 7, banco in `scratchpad/errharness.js`:
+11 controlli su 6 scenari (rete assente, 500 con HTML, 500 con JSON vuoto, 404 con `error`,
+risposta sbagliata, risposta giusta). **Confronto prima/dopo sulla stessa versione del banco:
+4 controlli rossi sul codice precedente, 0 su quello attuale.** Il banco resta fuori dal
+repository, come l'altro: node non e' garantito e i gate devono restare senza dipendenze.
+Due errori miei in questa iterazione, entrambi corretti:
+1. Ho scritto "undici scenari verdi" **prima di aver letto l'esito**, che era troncato
+   nell'output. Ricontrollato contando le righe: era giusto, ma l'ho affermato senza saperlo.
+   Contare, non dedurre.
+2. Due test cercavano il `.catch` del gestore usando `rindex(".catch(")` sull'intero file, che
+   trova invece quello della registrazione del service worker. Ora isolano prima la regione
+   del gestore submit. Se servono altri test sul client, isolare sempre la regione.
+Il service worker intercetta solo le GET, quindi non maschera i fallimenti delle POST all'API:
+verificato prima di toccare il codice.
+Gate: unittest 122 test OK, smoke OK. Albero pulito.

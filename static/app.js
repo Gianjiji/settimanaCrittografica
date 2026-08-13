@@ -7,12 +7,26 @@
     });
   }
 
+  // Why a check did not happen. Kept apart from a wrong answer, which is a real verdict.
+  var OFFLINE = "offline";
+  var SERVER = "server";
+
   function post(url, payload) {
     return fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
-    }).then(function (response) { return response.json(); });
+    }).catch(function () {
+      throw OFFLINE;  // the request never reached the server
+    }).then(function (response) {
+      return response.json().catch(function () {
+        throw SERVER;  // it answered, but not with the JSON we asked for
+      }).then(function (data) {
+        // A refusal carrying an explanation is an answer; anything else is a failure.
+        if (!response.ok && !data.error) { throw SERVER; }
+        return data;
+      });
+    });
   }
 
   function markFields(form, fields) {
@@ -71,8 +85,12 @@
             : "Non torna. Rileggi l'aiuto 2 prima di riprovare.";
           focusForRetry(form, data.fields);
         }
-      }).catch(function () {
-        esito.textContent = "Verifica non disponibile offline.";
+      }).catch(function (reason) {
+        // The answer was not judged, so clear any mark left by an earlier attempt.
+        markFields(form, null);
+        esito.textContent = reason === OFFLINE
+          ? "Niente rete: la risposta non e' stata verificata. Riprova quando torni online."
+          : "Errore del server: la risposta non e' stata controllata. Riprova fra poco.";
       });
     });
   });
