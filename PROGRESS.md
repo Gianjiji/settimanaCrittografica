@@ -14,7 +14,7 @@
       corrette, comportamento con database vuoto.
 - [x] Test di escaping: inserisci un valore con caratteri HTML in un campo e verifica che la
       pagina non lo interpreti.
-- [ ] Verifica che due richieste concorrenti a `/api/verifica` non producano errori di lock
+- [x] Verifica che due richieste concorrenti a `/api/verifica` non producano errori di lock
       SQLite. Se succede, correggi la gestione della connessione.
 
 **P1, usabilita'**
@@ -199,3 +199,42 @@ puzzle lato server. I test su `/statistiche` iniettano il valore ostile chiamand
 `storage.log_attempt` direttamente: servono a garantire che se un domani un dato utente
 arrivasse fin li', il template lo neutralizzi comunque.
 Gate: unittest 83 test OK, smoke OK. Albero pulito.
+
+### Iterazione 6, 2026-08-13
+Task: concorrenza su `/api/verifica`, nessun errore di lock SQLite. **Ultima voce P0.**
+Fatto: `tests/test_concurrency.py`, 9 test. Corretti **quattro** difetti in `storage.py`.
+Attenzione: il primo stress test con 16 thread passava senza errori. Il difetto non si vedeva
+perche' le transazioni sono minuscole e il timeout di default da 5 secondi le assorbe. Non
+fidarsi di quel risultato: sono serviti scenari mirati.
+1. **Journal mode `delete`: un lettore blocca lo scrittore.** Dimostrato con un lettore che
+   tiene aperta una transazione mentre un'altra connessione scrive: fallisce con
+   "database is locked". E' il caso reale dell'app, dove ogni pagina legge il registro e ogni
+   risposta lo scrive. Passato a WAL, dove lo stesso scenario riesce.
+2. **Connessioni non chiuse se la query alza un'eccezione.** `solved_numbers`, `stats_by_kind`
+   e `log_attempt` chiudevano fuori da un `finally`. Con un'eccezione il traceback trattiene
+   il frame, e con esso la connessione, che resta aperta con i suoi lock.
+3. **`connect()` perdeva la connessione se la preparazione falliva**, cioe' se la PRAGMA o lo
+   SCHEMA andavano in errore dopo la `sqlite3.connect`. Ora chiude e rilancia.
+4. **La correzione (1) ha introdotto un difetto nuovo, ed e' la parte piu' importante.**
+   Messa la PRAGMA WAL su ogni `connect()`, i test sono diventati **intermittenti, circa il 25%
+   di fallimenti**, sempre con "database is locked". Causa: cambiare journal mode richiede un
+   lock esclusivo e, a differenza delle scritture normali, ritorna SQLITE_BUSY **subito**,
+   senza rispettare il busy timeout. Con 12 thread che creano il database insieme, vanno tutti
+   in contesa proprio li'. Risolto eseguendo la PRAGMA **una volta per percorso**, con un
+   `threading.Lock` e un set `_WAL_READY`. Lo `SCHEMA` resta invece su ogni connessione: e'
+   idempotente, rispetta il busy timeout, e cosi' la tabella si ricrea se il file sparisce.
+Verificato con mutation testing, una regressione alla volta: tolto WAL falliscono 2 test;
+tolto il `finally` fallisce `test_no_attempt_is_lost`; tolta la chiusura in `connect()`
+fallisce il test dedicato.
+Tentativo fallito da non ripetere: la prima versione di quel test verificava solo che il
+database restasse scrivibile dopo il fallimento. **Era vacua**: CPython chiude comunque la
+connessione per refcount, quindi passava anche col difetto presente. Ora il test intercetta
+`sqlite3.connect`, tiene l'oggetto e verifica che sia chiuso davvero, aspettandosi
+`ProgrammingError` all'uso.
+Prove finali: suite completa 5 volte di fila tutta verde, e stress separato con 32 thread,
+4800 POST e 9600 GET su 5 prove, zero errori e 960/960 righe scritte a ogni prova.
+Nota: WAL crea i file `-wal` e `-shm` accanto al database, dentro `instance/`, gia' ignorata.
+Gate: unittest 92 test OK, smoke OK. Albero pulito.
+
+**Stato: tutte le voci P0 sono chiuse.** Restano le cinque P1, quindi niente stringa di
+completamento.
