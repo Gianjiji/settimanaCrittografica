@@ -7,7 +7,7 @@
 - [x] `tools/smoke.py` come da Bootstrap.
 - [x] Test delle rotte con `app.test_client()`: codici di stato, e verifica che l'HTML del
       fascicolo non contenga nessuno dei valori di risposta delle nove schede.
-- [ ] Test dell'API `/api/verifica` e `/api/parola` con payload malformati: campo mancante,
+- [x] Test dell'API `/api/verifica` e `/api/parola` con payload malformati: campo mancante,
       numero di scheda inesistente, array risposte piu' corto del numero di campi, JSON non
       valido, tipi sbagliati. Nessuno deve produrre un 500.
 - [ ] Test di `storage.py`: creazione del database, conteggio tentativi, percentuali di errore
@@ -114,3 +114,33 @@ Confermato non-fuga: `steps` (la soluzione ragionata) non compare mai nel fascic
 pagina soluzioni. Gli aiuti contengono numeri che a volte coincidono con la risposta, ma e'
 voluto: l'invariante 3 chiede che il terzo aiuto sia quasi-soluzione.
 Gate: unittest 28 test OK, smoke OK. Albero pulito.
+
+### Iterazione 3, 2026-08-13
+Task: API con payload malformati, nessun 500.
+Fatto: `tests/test_api.py`, 17 test (con subTest, circa 60 payload distinti).
+Trovato: **tre cause distinte di 500**, non una. Sondato prima con uno script, poi fissato nei test.
+1. Body che non e' un oggetto JSON (`[1,2]`, `"ciao"`, `42`, `true`): `payload.get` su una lista
+   dava `AttributeError`. Colpiva **entrambe** le rotte. Nota: `get_json(silent=True) or {}`
+   sembra difensivo ma non lo e', perche' una lista non vuota e' truthy e passa il filtro.
+2. `issue` di tipo non stringa (`123`, `[]`, `{}`): `build_issue` andava in `TypeError` sul
+   match della regex, e con `{}` in `unhashable type` perche' e' memoizzata. Entrambe le rotte.
+3. `answers` non lista (`5`, `{"0":"1"}`, `true`): `check_puzzle` fa `len(answers)` e
+   `answers[i]`, quindi `TypeError` con un intero e `KeyError` con un dict. Solo `/api/verifica`.
+   Anche qui `payload.get("answers") or []` non bastava: un dict non vuoto passa.
+Corretto in `app.py` con due helper, `_payload()` e `_issue_from()`, piu' un controllo di tipo
+su `answers`. Fix al confine dell'API: `crypto_puzzles/core.py` resta pulito, non l'ho reso
+difensivo perche' il contratto di `check_puzzle` e' "ricevi una lista" e il chiamante ora lo
+rispetta.
+Verificato: ri-eseguita la sonda, 50 richieste malformate, 0 risposte 5xx. `/api/verifica`
+risponde solo 200/400/404, `/api/parola` solo 200/404. Aggiunti test di happy path che
+verificano tutte e nove le schede con le risposte giuste, cosi' l'hardening non puo' aver
+rotto il flusso normale.
+I test spostano `storage.DB_PATH` su una cartella temporanea in `setUpModule`: senza questo
+ogni run sporcava le statistiche reali del giocatore con centinaia di tentativi falsi.
+Scelte deliberate, per non cambiarle a caso in futuro:
+- JSON malformato risponde 404 "fascicolo inesistente", non 400. E' la conseguenza del body
+  vuoto, ed e' coerente con `issue` mancante. Un 400 sarebbe piu' preciso: candidato per
+  quando si tocchera' la gestione errori lato client (voce P1 sul messaggio di rete).
+- `issue` di tipo sbagliato risponde 404 e non 400, per coerenza con `issue` inesistente.
+- `answers` di tipo sbagliato risponde 200 con tutti i campi a false, come `answers` mancante.
+Gate: unittest 45 test OK, smoke OK. Albero pulito.

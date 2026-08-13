@@ -19,6 +19,20 @@ def _issue_or_404(issue_id):
     return issue
 
 
+def _payload():
+    """The request body as a dict. A body that is not a JSON object counts as empty."""
+    payload = request.get_json(silent=True)
+    return payload if isinstance(payload, dict) else {}
+
+
+def _issue_from(payload):
+    """The requested issue, or None when the client sent something that is not an id."""
+    issue_id = payload.get("issue", "")
+    if not isinstance(issue_id, str):
+        return None
+    return build_issue(issue_id)
+
+
 def _sections(issue):
     grouped = []
     for difficulty, name, blurb in SECTIONS:
@@ -61,8 +75,8 @@ def stats_page():
 
 @app.post("/api/verifica")
 def verify():
-    payload = request.get_json(silent=True) or {}
-    issue = build_issue(payload.get("issue", ""))
+    payload = _payload()
+    issue = _issue_from(payload)
     if issue is None:
         return jsonify({"error": "fascicolo inesistente"}), 404
     try:
@@ -72,7 +86,9 @@ def verify():
     puzzle = next((p for p in issue.puzzles if p.number == number), None)
     if puzzle is None:
         return jsonify({"error": "scheda non valida"}), 404
-    answers = payload.get("answers") or []
+    answers = payload.get("answers")
+    if not isinstance(answers, list):
+        answers = []
     correct, per_field = check_puzzle(puzzle, answers)
     storage.log_attempt(issue.issue_id, puzzle.number, puzzle.kind, puzzle.difficulty, correct)
     return jsonify({"correct": correct, "fields": per_field})
@@ -80,8 +96,8 @@ def verify():
 
 @app.post("/api/parola")
 def verify_word():
-    payload = request.get_json(silent=True) or {}
-    issue = build_issue(payload.get("issue", ""))
+    payload = _payload()
+    issue = _issue_from(payload)
     if issue is None:
         return jsonify({"error": "fascicolo inesistente"}), 404
     guess = re.sub(r"[^a-z]", "", str(payload.get("answer", "")).lower())
