@@ -18,8 +18,21 @@ CREATE TABLE IF NOT EXISTS attempts (
 """
 
 
+def percentage(part, whole):
+    """Percentage rounded half up.
+
+    round() rounds halves to even, so an error rate of 12.5 came out as 12 while 37.5
+    came out as 38. Two identical margins must not round in opposite directions.
+    """
+    if not whole:
+        return 0
+    return (200 * part + whole) // (2 * whole)
+
+
 def connect():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    directory = os.path.dirname(DB_PATH)
+    if directory:  # a bare filename has no directory part, and makedirs("") raises
+        os.makedirs(directory, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute(SCHEMA)
@@ -62,6 +75,6 @@ def stats_by_kind():
             "difficulty": row["difficulty"],
             "total": total,
             "ok": ok,
-            "error_rate": round(100.0 * (total - ok) / total) if total else 0,
+            "error_rate": percentage(total - ok, total),
         })
     return out

@@ -10,7 +10,7 @@
 - [x] Test dell'API `/api/verifica` e `/api/parola` con payload malformati: campo mancante,
       numero di scheda inesistente, array risposte piu' corto del numero di campi, JSON non
       valido, tipi sbagliati. Nessuno deve produrre un 500.
-- [ ] Test di `storage.py`: creazione del database, conteggio tentativi, percentuali di errore
+- [x] Test di `storage.py`: creazione del database, conteggio tentativi, percentuali di errore
       corrette, comportamento con database vuoto.
 - [ ] Test di escaping: inserisci un valore con caratteri HTML in un campo e verifica che la
       pagina non lo interpreti.
@@ -144,3 +144,29 @@ Scelte deliberate, per non cambiarle a caso in futuro:
 - `issue` di tipo sbagliato risponde 404 e non 400, per coerenza con `issue` inesistente.
 - `answers` di tipo sbagliato risponde 200 con tutti i campi a false, come `answers` mancante.
 Gate: unittest 45 test OK, smoke OK. Albero pulito.
+
+### Iterazione 4, 2026-08-13
+Task: test di `storage.py`.
+Fatto: `tests/test_storage.py`, 24 test su creazione del db, log dei tentativi, schede risolte,
+statistiche, e database vuoto. Ogni test ha il suo database temporaneo via `addCleanup`.
+Trovato, e corretto, due difetti reali:
+1. **Percentuali di errore incoerenti.** `round()` in Python arrotonda i mezzi al pari, quindi
+   1 errore su 8 dava 12 (da 12.5) ma 3 su 8 dava 38 (da 37.5). Due margini identici che
+   arrotondano in direzioni opposte, su una pagina che serve a capire dove si sbaglia di piu'.
+   Aggiunta `storage.percentage(part, whole)` con half-up in aritmetica intera:
+   `(200*part + whole) // (2*whole)`. Niente `Decimal`, niente float, nessuna dipendenza.
+   Verificata **esaustivamente** contro `ROUND_HALF_UP`: 80199 coppie con denominatore fino a
+   399, zero discordanze, e risultato sempre fra 0 e 100.
+2. **`DB_PATH` senza cartella faceva crashare l'app.** `connect()` chiamava
+   `os.makedirs(os.path.dirname(DB_PATH))`, e per un nome file semplice il dirname e' `""`,
+   che alza `FileNotFoundError`. Ora la creazione e' condizionata alla presenza di una cartella.
+   Non e' teorico: e' la configurazione naturale se si vuole il database nella cartella corrente.
+Tentativo fallito: la prima versione di `percentage` la avevo scritta con `Decimal` e mi e'
+uscita una riga malformata, con `quantize` applicata al denominatore invece che al quoziente.
+L'aritmetica intera e' piu' corta, esatta e non importa nulla: usare quella.
+Annotato per la **prossima voce** (lock SQLite in concorrenza), gia' visto leggendo il codice:
+`solved_numbers` e `stats_by_kind` non chiudono la connessione se la query alza un'eccezione,
+perche' il `close()` non e' in un `finally`. Con SQLite una connessione che resta aperta
+trattiene il lock: e' il primo posto da guardare. Inoltre `sqlite3.connect` e' chiamata senza
+`timeout`, quindi il default e' 5 secondi e poi "database is locked".
+Gate: unittest 69 test OK, smoke OK. Albero pulito.
