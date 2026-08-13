@@ -12,7 +12,7 @@
       valido, tipi sbagliati. Nessuno deve produrre un 500.
 - [x] Test di `storage.py`: creazione del database, conteggio tentativi, percentuali di errore
       corrette, comportamento con database vuoto.
-- [ ] Test di escaping: inserisci un valore con caratteri HTML in un campo e verifica che la
+- [x] Test di escaping: inserisci un valore con caratteri HTML in un campo e verifica che la
       pagina non lo interpreti.
 - [ ] Verifica che due richieste concorrenti a `/api/verifica` non producano errori di lock
       SQLite. Se succede, correggi la gestione della connessione.
@@ -170,3 +170,32 @@ perche' il `close()` non e' in un `finally`. Con SQLite una connessione che rest
 trattiene il lock: e' il primo posto da guardare. Inoltre `sqlite3.connect` e' chiamata senza
 `timeout`, quindi il default e' 5 secondi e poi "database is locked".
 Gate: unittest 69 test OK, smoke OK. Albero pulito.
+
+### Iterazione 5, 2026-08-13
+Task: test di escaping.
+Fatto: `tests/test_escaping.py`, 14 test, sette payload ostili piu' `{{7*7}}`.
+**Nessun difetto trovato: l'escaping era gia' corretto.** Jinja autoescapa, `app.js` scrive
+solo con `textContent`, nessun template usa `|safe`, e le rotte API non riflettono mai
+l'input. Iterazione di sola copertura, ed e' un esito legittimo.
+Metodo, la parte che conta: **la prima versione del test era sbagliata e dava sette falsi
+positivi**. Cercavo nella pagina i frammenti `<...>` estratti dal payload, ma ogni pagina
+contiene legittimamente `</script>` (per `app.js`) e `</td>` (le celle della tabella), quindi
+il test "trovava" injection ovunque. Non riscrivere il test in quella forma.
+Sostituito con un confronto strutturale: parsifico la pagina con `html.parser` e confronto la
+sequenza di tag della pagina ostile con quella della stessa pagina resa con un valore benigno.
+Se l'escaping funziona il payload produce **zero tag**, quindi le due firme sono identiche.
+E' preciso e non ha falsi positivi: `javascript:alert(1)` e `';alert(1);//` non contengono tag
+e infatti non vengono segnalati, correttamente.
+Aggiunto anche il controllo opposto, che il payload compaia nel **testo visibile**: senza,
+un template che cancella il valore invece di escaparlo passerebbe il test.
+Verificato che la suite non e' vacua: introdotto `|safe` su `{{ row.kind }}` in `stats.html`,
+falliscono 8 subtest fra comportamentali e strutturali; rimosso, torna tutto verde.
+Superficie coperta: valori dal database resi in `/statistiche` (unico punto dove un dato
+memorizzato finisce in una pagina), payload in tutti i campi delle due API, `issue_id` ostile
+nell'URL e nel path, query string, piu' tre guardie sorgente (nessun `|safe` nei template,
+nessun `innerHTML` in `app.js`, autoescape attivo).
+Nota: oggi nessun input utente raggiunge il database, perche' `kind` e' sempre derivato dal
+puzzle lato server. I test su `/statistiche` iniettano il valore ostile chiamando
+`storage.log_attempt` direttamente: servono a garantire che se un domani un dato utente
+arrivasse fin li', il template lo neutralizzi comunque.
+Gate: unittest 83 test OK, smoke OK. Albero pulito.
