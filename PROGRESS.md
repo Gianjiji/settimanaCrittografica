@@ -20,7 +20,7 @@
 **P1, usabilita'**
 
 - [x] Invio con tasto Invio su ogni campo, e focus che resta dove serve dopo la verifica.
-- [ ] Controllo del layout a 360 pixel di larghezza: nessun overflow orizzontale, campi e
+- [x] Controllo del layout a 360 pixel di larghezza: nessun overflow orizzontale, campi e
       bottoni raggiungibili con il pollice.
 - [ ] Messaggio di errore quando la verifica fallisce per rete assente, distinto da risposta
       sbagliata.
@@ -273,3 +273,37 @@ Proposta annotata, non implementata per non accorpare voci: i campi errati oggi 
 solo dal colore (classe `errato`). Andrebbe aggiunto `aria-invalid`, che e' la stessa
 informazione resa disponibile a chi non vede il colore. Una riga in `markFields`.
 Gate: unittest 104 test OK, smoke OK. Albero pulito.
+
+### Iterazione 8, 2026-08-13
+Task: layout a 360 pixel, nessun overflow orizzontale, controlli raggiungibili col pollice.
+Fatto: `tests/test_layout.py`, 8 test. Corretti i bersagli tattili in `static/style.css`.
+**Overflow orizzontale: non c'e', e ora e' misurato invece che supposto.** Il token piu' lungo
+prodotto dai generatori su 52 fascicoli e' di 17 caratteri, contro un budget di 28 caratteri
+monospace nella larghezza utile di una scheda a 360px. Il test lo ricalcola dai generatori
+veri, quindi un domani un generatore che emettesse una stringa lunga lo farebbe fallire.
+**Difetto trovato e corretto: i controlli erano troppo piccoli per il pollice.** Il minimo
+ragionevole e' 44px. Erano: campi di risposta circa 37px, bottoni circa 34px, e soprattutto i
+`summary` degli aiuti circa 18px, perche' sono solo testo a 0.72rem senza padding. Sono i
+controlli che si toccano di piu' in tutta la pagina. Aggiunte tre regole nel blocco
+`@media (max-width: 640px)` con `min-height: 44px`, piu' padding sui summary.
+Verificato con mutation testing: tolta una qualunque delle tre regole il test relativo passa
+al rosso, e abbassando il valore a 30px il test lo segnala col numero esatto.
+**Errore mio, da non ripetere: ho affermato che non c'erano media query.** Le avevo cercate
+con un grep il cui output era troncato. Il foglio di stile ha gia' un blocco
+`max-width: 640px` che a schermo stretto libera le colonne fisse da 9rem e manda il bottone a
+tutta larghezza. Prima di dire che una cosa manca, leggere il file.
+Sulla verifica col browser, perche' non riprovarla a vuoto: ho avviato l'app e provato a
+misurare con Chrome. **Non funziona in questo ambiente**, per due motivi indipendenti.
+Primo, Chrome non scende sotto la sua larghezza minima di finestra, quindi un viewport da
+360px non si ottiene ridimensionando. Secondo, e decisivo, Chrome non raggiunge il server
+locale: sia `127.0.0.1` sia `localhost` danno "connessione negata", mentre `curl` risponde
+200. Il tool di navigazione riporta comunque "Navigated to", quindi il fallimento e' muto.
+Ci sono cascato: **ho misurato e riportato "zero overflow" su quella che era la pagina di
+errore di Chrome**. Il campanello d'allarme era `location.origin` uguale a `null` e zero
+input trovati in una pagina che ne ha venti. Se una prossima iterazione prova col browser,
+verificare **sempre** l'identita' del documento prima di misurare, per esempio con
+`document.querySelector('form.risposta')`, e non fidarsi dell'esito del navigate.
+Conseguenza onesta: i test di questa voce sono statici, ragionano sul CSS dichiarato e sui
+dati dei generatori. Le altezze reali dipendono anche dal font di sistema, quindi il
+controllo a occhio su un telefono vero resta da fare.
+Gate: unittest 112 test OK, smoke OK. Albero pulito.

@@ -203,6 +203,10 @@ a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visibl
   .risposta label span { flex: none; }
   .risposta button { width: 100%; }
   .menu { gap: 1rem; }
+  /* Thumb sized controls: 44px is the usual minimum for a touch target. */
+  .risposta input { min-height: 44px; }
+  .risposta button { min-height: 44px; }
+  .aiuti summary { min-height: 44px; padding: 0.75rem 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
