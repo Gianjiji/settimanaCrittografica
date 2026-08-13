@@ -53,7 +53,7 @@ def _ic_puzzle(rng, pool):
         statement="Calcola l'indice di coincidenza IC della parola. Rispondi con una frazione, "
                   "ridotta o no.",
         given=[("Parola", word.upper())],
-        fields=[Field(label="IC", kind="fraction", value=str(value), placeholder="es. 2/21")],
+        fields=[Field(label="IC", kind="fraction", value=str(value), placeholder="frazione, es. n/d")],
         hints=[
             "IC = somma di f(f-1) su tutte le lettere, diviso n(n-1), con n lunghezza della parola.",
             "Solo le lettere ripetute contribuiscono al numeratore: %s." % repeated,
@@ -90,7 +90,7 @@ def _mic_puzzle(rng, pool):
         statement="Calcola l'indice di mutua coincidenza MIC delle due parole. Rispondi con una "
                   "frazione, ridotta o no.",
         given=[("Prima parola", a.upper()), ("Seconda parola", b.upper())],
-        fields=[Field(label="MIC", kind="fraction", value=str(value), placeholder="es. 3/49")],
+        fields=[Field(label="MIC", kind="fraction", value=str(value), placeholder="frazione, es. n/d")],
         hints=[
             "MIC = somma sui 26 caratteri di f(x) per f(y), diviso n(x) per n(y).",
             "Contano solo le lettere presenti in entrambe le parole: %s." % shared,

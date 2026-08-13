@@ -31,7 +31,7 @@ def _additive_puzzle(rng):
                   "Qual è il segreto?" % (n, n, p),
         given=[("Campo", "Z%d" % p), ("Share", listed)],
         fields=[Field(label="Segreto s", kind="number", value=str(secret),
-                      placeholder="numero fra 0 e %d" % (p - 1))],
+                      placeholder="resto in Z%d" % p)],
         hints=[
             "Nello schema (n,n) il segreto è la somma delle share nel campo.",
             "Somma i valori: %s." % " + ".join(str(s) for s in shares),
@@ -64,7 +64,7 @@ def _shamir_consecutive(rng):
                   "f(x) = s + a1 x. Ricostruisci il segreto dalle due share disponibili." % p,
         given=[("Campo", "Z%d" % p), ("Share", "P1 = %d, P2 = %d" % (y1, y2))],
         fields=[Field(label="Segreto s", kind="number", value=str(secret),
-                      placeholder="numero fra 0 e %d" % (p - 1))],
+                      placeholder="resto in Z%d" % p)],
         hints=[
             "Le share sono i valori del polinomio in x = 1 e x = 2. Il segreto è f(0).",
             "Con x = 1 e x = 2 la formula di Lagrange si riduce a s = 2*y1 - y2 mod %d." % p,
@@ -103,7 +103,7 @@ def _shamir_gapped(rng):
         given=[("Campo", "Z%d" % p),
                ("Share", "f(%d) = %d, f(%d) = %d" % (x1, y1, x2, y2))],
         fields=[Field(label="Segreto s", kind="number", value=str(secret),
-                      placeholder="numero fra 0 e %d" % (p - 1))],
+                      placeholder="resto in Z%d" % p)],
         hints=[
             "Il segreto è f(0). Con due punti passi per la retta e la valuti in zero.",
             "Coefficiente angolare: a1 = (y2 - y1) * inverso di (x2 - x1) modulo %d." % p,

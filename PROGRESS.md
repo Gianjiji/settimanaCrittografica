@@ -5,7 +5,7 @@
 **P0, collaudo**
 
 - [x] `tools/smoke.py` come da Bootstrap.
-- [ ] Test delle rotte con `app.test_client()`: codici di stato, e verifica che l'HTML del
+- [x] Test delle rotte con `app.test_client()`: codici di stato, e verifica che l'HTML del
       fascicolo non contenga nessuno dei valori di risposta delle nove schede.
 - [ ] Test dell'API `/api/verifica` e `/api/parola` con payload malformati: campo mancante,
       numero di scheda inesistente, array risposte piu' corto del numero di campi, JSON non
@@ -74,3 +74,43 @@ Rilevato per le prossime iterazioni (non toccato, il Bootstrap vieta altro lavor
   riceve qualunque tipo: verificare che un `issue` non stringa non esploda.
 Gate: `python -m unittest discover -s tests -v` 14 test OK, `python tools/smoke.py` 8 check OK.
 Commit: be12838 "Initial state", poi il commit "Bootstrap: PROGRESS.md backlog and tools/smoke.py".
+
+### Iterazione 2, 2026-08-13
+Task: test delle rotte, e l'HTML del fascicolo non deve contenere le risposte.
+Fatto: `tests/test_routes.py`, 14 test. Codici di stato di tutte le rotte piu' 404 su fascicolo
+inesistente e su rotta inesistente; content type del service worker; sette test di non-fuga
+su 52 fascicoli.
+Trovato, e corretto: **i placeholder rivelavano la risposta**.
+- `coincidence.py` usava esempi fissi `es. 2/21` e `es. 3/49`. Sono valori di IC realmente
+  raggiungibili, quindi per certi semi il campo mostrava in grigio esattamente la risposta.
+  Ora `frazione, es. n/d`, senza cifre: non puo' piu' collidere.
+- `secret_sharing.py` usava `numero fra 0 e {p-1}`, e `p-1` **e'** il segreto quando il segreto
+  e' massimo. Ora `resto in Z{p}`: p e' il modulo, e in Z_p le risposte stanno fra 0 e p-1,
+  quindi la collisione e' impossibile per costruzione, non per caso.
+Verificato che il test non passa a vuoto: reintrodotto il placeholder difettoso, il test
+fallisce su 2026-W27; ripristinato, torna verde. E confrontate risposte e parola su 52
+fascicoli prima e dopo la modifica: identiche, l'invariante 2 regge (ho toccato solo un
+suggerimento di formato, mai un valore).
+
+Tentativi falliti, da non ripetere:
+1. Primo test scritto come "nessuna risposta compare nell'HTML". **Non funziona**: le risposte
+   sono numeri di una cifra, e `3` compare 31 volte per motivi legittimi (moduli, enunciati,
+   id del fascicolo). Non riscrivere questo test in forma globale.
+2. Scansione di tutti gli attributi: falso positivo su `data-number="3"`, che e' il numero
+   della scheda #3, non la risposta della #9. Sostituito da una **whitelist**: sul fascicolo
+   possono esistere solo `data-issue`, `data-number`, `data-index`, e i loro valori devono
+   essere ordinali. Garanzia piu' forte, perche' non dipende dai valori.
+3. Test "la parola della settimana non compare nella pagina": falso positivo su `segreto`,
+   che e' l'etichetta del campo di Shamir. `META_WORDS` e' lessico crittografico
+   (`modulo`, `chiave`, `segreto`, `inverso`...), parole che ricorrono per forza negli
+   enunciati: la collisione e' sistemica. La parola e' protetta dalla chiave di Cesare, non
+   dalla propria assenza. Il test ora copre solo commenti, script e attributi dati/value.
+   Non reintrodurre il controllo sul testo visibile: e' irrisolvibile senza cambiare
+   `META_WORDS`, e cambiarla riscriverebbe tutti gli arretrati.
+4. Nota: il mio primo placeholder sostitutivo era `resto modulo {p}`, che ha fatto fallire il
+   test della parola su 2026-W30, dove la parola e' MODULO. Da qui la scelta della notazione Z,
+   che oltretutto e' gia' quella usata in `given`.
+Confermato non-fuga: `steps` (la soluzione ragionata) non compare mai nel fascicolo, solo nella
+pagina soluzioni. Gli aiuti contengono numeri che a volte coincidono con la risposta, ma e'
+voluto: l'invariante 3 chiede che il terzo aiuto sia quasi-soluzione.
+Gate: unittest 28 test OK, smoke OK. Albero pulito.
