@@ -43,7 +43,8 @@ dedicati.
       Modulo e property test fatti; **registrazione bloccata**, vedi `## Bloccato`.
 - [~] Cifrario di Hill due per due: validita' della matrice e cifratura di una parola breve.
       Modulo e property test fatti; **registrazione bloccata**, vedi `## Bloccato`.
-- [ ] El Gamal in Z11: chiave pubblica, cifratura e decifratura con k piccolo.
+- [~] El Gamal in Z11: chiave pubblica, cifratura e decifratura con k piccolo.
+      Modulo e property test fatti; **registrazione bloccata**, vedi `## Bloccato`.
 
 **P3, solo dopo che P0 e P1 sono chiusi**
 
@@ -53,8 +54,8 @@ dedicati.
 
 ## Bloccato
 
-**P2, registrazione dei nuovi generatori in `GENERATORS`.** I moduli `diffie_hellman`,
-`affine`, `feistel` e `hill` sono scritti e testati, ma **nessuno e' registrato**, perche' registrarli
+**P2, registrazione dei nuovi generatori in `GENERATORS`.** Tutti e cinque i moduli
+(`diffie_hellman`, `affine`, `feistel`, `hill`, `elgamal`) sono scritti e testati, ma **nessuno e' registrato**, perche' registrarli
 violerebbe l'invariante 2.
 
 Cosa ho provato: aggiungere un quarto modulo a `GENERATORS`.
@@ -687,9 +688,33 @@ fallimenti), matrice trasposta in cifratura (358), inversa senza scambio della d
 (800).
 Gate: unittest 291 test OK, smoke OK.
 
+### Iterazione 20, 2026-08-13
+Task: quinta e ultima voce P2, El Gamal. Stesso blocco sulla registrazione.
+Fatto: `crypto_puzzles/elgamal.py` e `tests/test_elgamal.py`, 20 test su 400 semi per
+difficolta'. Le tre schede: chiave pubblica, cifratura con k piccolo, decifratura.
+Riusa `DH_MODULI` e `PRIMITIVE_ROOTS` gia' scritti e testati nell'iterazione 13, quindi Z11 e
+Z13 e tabelle delle potenze da dieci o dodici righe.
+Test scritti con oracolo indipendente, come da lezione dell'iterazione 18: `reference_power`
+moltiplica ripetutamente invece di usare `pow` a tre argomenti, e la decifratura e' verificata
+**in avanti**, cioe' ri-cifrando la risposta e pretendendo il crittogramma ricevuto.
+Verificato in modo esaustivo che cifratura e decifratura siano inverse su tutte le
+combinazioni di p, g, x, m e k piccoli, e che `c1^x` coincida sempre con `y^k`: e' l'identita'
+su cui si regge lo schema.
+Mutation testing: cinque sabotaggi, quattro colti subito. Il quinto, "il messaggio puo' essere
+zero", **e' sopravvissuto** perche' il mio test sullo zero guardava solo la scheda di
+decifratura, mentre la mutazione aveva colpito quella di cifratura. Un messaggio nullo
+renderebbe `c2 = 0` qualunque sia la maschera, e la scheda insegnerebbe una cosa sbagliata.
+Esteso il test a entrambe le schede: ora tutte e due le occorrenze vengono colte.
+Gate: unittest 311 test OK, smoke OK.
+
 ## Stato finale
 
-Chiuse **tutte** le voci P0, P1 e P3. Delle cinque P2, quattro hanno modulo e property test
-completi ma **non registrati**, e una non e' stata scritta: tutte e cinque dipendono dalla
-stessa decisione editoriale descritta in `## Bloccato`, che non e' una scelta tecnica.
-Da 14 test a 291, piu' `tools/smoke.py` con 8 controlli su tutte le rotte.
+Chiuse **tutte** le voci P0, P1 e P3. **Tutte e cinque le P2 hanno modulo e property test
+completi, e nessuna e' registrata**: dipendono dalla stessa decisione editoriale descritta in
+`## Bloccato`, che non e' una scelta tecnica e non spetta a questo loop.
+Non resta nulla di scrivibile nel backlog.
+Da 14 test a 311, piu' `tools/smoke.py` con 8 controlli su tutte le rotte.
+I cinque moduli pronti ma inattivi: `diffie_hellman`, `affine`, `feistel`, `hill`, `elgamal`.
+Per attivarli servono, in un colpo solo, la decisione sul numero di schede e la modifica di
+`_build_puzzles`. Finche' non accade, il fascicolo resta a nove schede e gli arretrati
+restano riproducibili.
