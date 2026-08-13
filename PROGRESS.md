@@ -37,8 +37,8 @@ dedicati.
 
 - [~] Diffie-Hellman: verifica di radice primitiva, logaritmo discreto in Z11 o Z13, chiave
       condivisa. Modulo e property test fatti; **registrazione bloccata**, vedi `## Bloccato`.
-- [ ] Cifrario affine: chiave da due corrispondenze note, validita' del parametro a, cifratura
-      composta.
+- [~] Cifrario affine: chiave da due corrispondenze note, validita' del parametro a, cifratura
+      composta. Modulo e property test fatti; **registrazione bloccata**, vedi `## Bloccato`.
 - [ ] Rete di Feistel a due round con funzione di round elementare, su otto bit.
 - [ ] Cifrario di Hill due per due: validita' della matrice e cifratura di una parola breve.
 - [ ] El Gamal in Z11: chiave pubblica, cifratura e decifratura con k piccolo.
@@ -519,3 +519,24 @@ sarebbe solo un numero che compare per la prima volta nel primo aiuto.
 Aggiunto un test che verifica che il modulo **non** sia in `GENERATORS` e che il fascicolo
 faccia ancora nove schede: se qualcuno lo registrasse per distrazione, il gate lo ferma.
 Gate: unittest 167 test OK, smoke OK. 52 fascicoli arretrati verificati, tutti a 9 schede.
+
+### Iterazione 14, 2026-08-13
+Task: seconda voce P2, cifrario affine. Stesso blocco sulla registrazione dell'iterazione 13.
+Fatto: `crypto_puzzles/affine.py` e `tests/test_affine.py`, 26 test su 400 semi per difficolta'.
+Le tre schede seguono le tre parti chieste dal backlog: quale dei due moltiplicatori e'
+ammissibile piu' una cifratura (facile), chiave ricavata da due corrispondenze note (media),
+due cifrari in cascata ridotti a uno solo piu' una cifratura (difficile, tre campi).
+Una trappola matematica che ho dovuto gestire nella scheda media: **due corrispondenze non
+sempre determinano la chiave**. Il sistema si riduce a `a (x1 - x2) = y1 - y2 mod 26`, che ha
+soluzione unica solo se `x1 - x2` e' invertibile modulo 26. Sorteggiando le posizioni a caso,
+circa la meta' delle coppie darebbe un esercizio con piu' chiavi valide, cioe' senza risposta
+univoca. Il generatore risorteggia finche' la differenza non e' coprima con 26, e c'e' un test
+che lo verifica su tutti i semi. Togliendo quella condizione il test produce 14 errori.
+Verificato con mutation testing, cinque sabotaggi distinti: A composto sbagliato (800
+fallimenti), B composto sbagliato (367), coppie non determinanti (14 errori), moltiplicatore
+non ammissibile (400), lettera composta sbagliata (400).
+Il test piu' forte e' quello sulla composizione: non confronta una formula con se' stessa, ma
+verifica su **tutte e 26 le lettere** che il cifrario composto dia lo stesso risultato di
+applicare i due cifrari in sequenza. E' il motivo per cui il sabotaggio su A produce 800
+fallimenti invece di 400.
+Gate: unittest 193 test OK, smoke OK. 52 arretrati ancora a 9 schede.
