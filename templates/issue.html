@@ -6,6 +6,7 @@
   <p class="numero-fascicolo">Fascicolo {{ issue.issue_id }}</p>
   <h1>Nove schede e una parola</h1>
   <p class="settimana">{{ issue.date_range }}</p>
+  <p class="contatore" role="status">{{ issue.puzzles | selectattr("number", "in", solved) | list | length }} di {{ issue.puzzles | length }} schede risolte</p>
   <p class="istruzioni">Risolvi le nove schede. Ogni scheda produce un numero: la loro somma, ridotta
   modulo 26, è la chiave di Cesare che scopre la parola dell'ultima pagina. Se la parola non ha senso,
   da qualche parte c'è un conto sbagliato.</p>

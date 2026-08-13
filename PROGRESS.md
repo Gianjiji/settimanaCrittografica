@@ -25,7 +25,7 @@
 - [x] Messaggio di errore quando la verifica fallisce per rete assente, distinto da risposta
       sbagliata.
 - [x] Stampa: il fascicolo su carta deve restare leggibile e senza elementi interattivi.
-- [ ] Contatore di schede risolte in cima al fascicolo.
+- [x] Contatore di schede risolte in cima al fascicolo.
 - [ ] `aria-invalid` sui campi errati. Aggiunta nell'iterazione 7: oggi l'errore su un campo
       e' comunicato solo dal colore, quindi non arriva a chi usa uno screen reader.
 
@@ -366,3 +366,28 @@ tolto `.risposta` dai selettori nascosti diventano rossi form, input e button se
 Non toccato di proposito: il timbro "risolto" continua a stamparsi. E' informazione utile su
 carta, sapere quali schede erano gia' chiuse, e non e' un elemento interattivo.
 Gate: unittest 129 test OK, smoke OK. Albero pulito.
+
+### Iterazione 11, 2026-08-13
+Task: contatore di schede risolte in cima al fascicolo.
+Fatto: `tests/test_counter.py`, 12 test. Una riga nel template, una funzione in `app.js`.
+Voce di sola aggiunta: non c'era niente di rotto da correggere.
+Lato server il contatore si calcola nel frontespizio filtrando `issue.puzzles` su `solved`.
+**Non uso `solved | length`**, che sarebbe la scrittura ovvia e sarebbe **sbagliata**: la
+parola della settimana viene registrata come scheda numero 0, quindi risolvendo la parola il
+contatore direbbe "1 di 9" senza che nessuna scheda sia stata risolta. Filtrando sui puzzle
+veri il numero 0 non puo' entrare. C'e' un test dedicato, e la mutazione a `solved | length`
+lo fa fallire.
+Lato client la pagina non si ricarica mai, quindi `refreshCounter()` riconta `.scheda.risolta`
+nel DOM a ogni scheda chiusa. **Ricontare invece di incrementare un totale** e' voluto: non
+esiste un contatore separato che possa sfasarsi rispetto a quello che si vede.
+Verifica vera con node, banco in `scratchpad/countharness.js`: 6 controlli, parte da 0 di 9,
+sale a 1 e 2, **risolvere due volte la stessa scheda resta 2 di 9**, arriva a 9 di 9, e una
+risposta sbagliata non lo muove. Tutti verdi.
+Aggiunto `role="status"` al contatore, cosi' l'aggiornamento viene annunciato: senza, chi usa
+uno screen reader non saprebbe mai che il numero e' cambiato, perche' la pagina non ricarica.
+Errore mio, corretto: un test verificava `assertIn("Counter", solved_branch + self.source)`.
+Concatenando l'intero sorgente **passava sempre**, qualunque cosa facesse il codice. Ora
+isola la riga che aggiunge `risolta` e pretende la chiamata sulla stessa riga, cosi' marcare
+la scheda e ricontare non possono separarsi. Attenzione a questa forma di test finto: era la
+seconda volta in poche iterazioni.
+Gate: unittest 141 test OK, smoke OK. Albero pulito.

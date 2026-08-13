@@ -54,6 +54,15 @@
     if (typeof target.select === "function") { target.select(); }
   }
 
+  function refreshCounter() {
+    // Recounted from the cards themselves: no tally to keep in step, so it cannot drift.
+    var counter = document.querySelector(".contatore");
+    if (!counter) { return; }
+    var total = document.querySelectorAll(".scheda").length;
+    var done = document.querySelectorAll(".scheda.risolta").length;
+    counter.textContent = done + " di " + total + " schede risolte";
+  }
+
   document.querySelectorAll("form.risposta").forEach(function (form) {
     form.addEventListener("submit", function (event) {
       event.preventDefault();
@@ -77,7 +86,7 @@
         if (data.correct) {
           esito.textContent = "";
           var card = form.closest(".scheda") || form.closest(".sezione");
-          if (card) { card.classList.add("risolta"); }
+          if (card) { card.classList.add("risolta"); refreshCounter(); }
           if (isWord) { esito.textContent = "Parola esatta. Fascicolo chiuso."; }
         } else {
           esito.textContent = isWord
