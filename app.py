@@ -6,7 +6,8 @@ from flask import Flask, abort, jsonify, redirect, render_template, request, sen
 
 import storage
 from crypto_puzzles.core import check_puzzle
-from crypto_puzzles.fascicle import SECTIONS, build_issue, current_issue_id, recent_issue_ids
+from crypto_puzzles.fascicle import (GENERATORS, SECTIONS, build_issue, current_issue_id,
+                                     recent_issue_ids)
 from crypto_puzzles.tables import INVERSE_TABLES
 
 app = Flask(__name__)
@@ -65,6 +66,47 @@ def solutions_page(issue_id):
 def archive_page():
     issues = [build_issue(i) for i in recent_issue_ids(12)]
     return render_template("archive.html", issues=[i for i in issues if i],
+                           current=current_issue_id())
+
+
+MIN_ATTEMPTS_TO_JUDGE = 3
+REVIEW_CARDS = 6
+REVIEW_HISTORY = 12
+
+
+def weak_families():
+    """The (kind, difficulty) pairs most often got wrong, worst first.
+
+    The pair, not just the kind: RSA at difficulty 3 can be a weakness while the same
+    family at difficulty 1 is not. A pair also needs a few attempts before its error
+    rate means anything, since one unlucky answer is not a weakness.
+    """
+    rows = [r for r in storage.stats_by_kind()
+            if r["total"] >= MIN_ATTEMPTS_TO_JUDGE and r["error_rate"] > 0]
+    rows.sort(key=lambda r: (-r["error_rate"], -r["total"], r["kind"], r["difficulty"]))
+    return [(r["kind"], r["difficulty"]) for r in rows]
+
+
+def review_cards(families):
+    """Real cards from recent issues, in the order the families were ranked."""
+    issues = [i for i in (build_issue(x) for x in recent_issue_ids(REVIEW_HISTORY)) if i]
+    picked = []
+    for kind, difficulty in families:
+        for issue in issues:
+            match = next((p for p in issue.puzzles
+                          if p.kind == kind and p.difficulty == difficulty), None)
+            if match is not None:
+                picked.append({"issue": issue, "puzzle": match})
+                break
+        # A family from a retired generator matches nothing above, and drops out here.
+        if len(picked) == REVIEW_CARDS:
+            return picked
+    return picked
+
+
+@app.route("/ripasso")
+def review_page():
+    return render_template("review.html", cards=review_cards(weak_families()),
                            current=current_issue_id())
 
 

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Ripasso{% endblock %}
+
+{% block content %}
+<section class="frontespizio">
+  <p class="numero-fascicolo">Ripasso</p>
+  <h1>Dove sbagli piu' spesso</h1>
+  <p class="istruzioni">Queste schede vengono dalle famiglie che nel registro hanno la
+  percentuale di errore piu' alta. Sono esercizi veri, presi dai fascicoli delle ultime
+  settimane, e si verificano come al solito.</p>
+</section>
+
+{% if not cards %}
+<section class="sezione">
+  <p class="sezione-nota">Nessuna famiglia da ripassare: o il registro e' ancora vuoto,
+  oppure finora non hai sbagliato abbastanza da farne un tema.</p>
+</section>
+{% else %}
+<section class="sezione">
+  {% for card in cards %}
+  {% set puzzle = card.puzzle %}
+  <article class="scheda" data-kind="{{ puzzle.kind }}">
+    <div class="scheda-testata">
+      <span class="scheda-numero">{{ "%02d"|format(puzzle.number) }}</span>
+      <span class="scheda-famiglia">{{ puzzle.family }}</span>
+      <span class="scheda-tempo">{{ puzzle.minutes }} min</span>
+    </div>
+    <h3>{{ puzzle.title }}</h3>
+    <p class="consegna">{{ puzzle.statement }}</p>
+
+    <dl class="dati">
+      {% for label, value in puzzle.given %}
+      <div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>
+      {% endfor %}
+    </dl>
+
+    <form class="risposta" data-issue="{{ card.issue.issue_id }}" data-number="{{ puzzle.number }}">
+      {% for field in puzzle.fields %}
+      <label>
+        <span>{{ field.label }}</span>
+        <input type="text" autocomplete="off" spellcheck="false" inputmode="text"
+               data-index="{{ loop.index0 }}" placeholder="{{ field.placeholder }}">
+      </label>
+      {% endfor %}
+      <button type="submit">Verifica</button>
+      <p class="esito" role="status"></p>
+    </form>
+
+    <details class="aiuti">
+      <summary>Aiuti</summary>
+      {% for hint in puzzle.hints %}
+      <details class="aiuto">
+        <summary>Aiuto {{ loop.index }}{% if loop.index == 1 %}, la procedura{% elif loop.index == 2 %}, il passo che blocca{% else %}, quasi la soluzione{% endif %}</summary>
+        <p>{{ hint }}</p>
+      </details>
+      {% endfor %}
+    </details>
+
+    <p class="provenienza">Dal fascicolo {{ card.issue.issue_id }}.</p>
+  </article>
+  {% endfor %}
+</section>
+{% endif %}
+{% endblock %}

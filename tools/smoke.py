@@ -21,6 +21,7 @@ def checks(issue_id):
         ("current issue page", "/fascicolo/" + issue_id, 200),
         ("solutions page", "/fascicolo/" + issue_id + "/soluzioni", 200),
         ("archive page", "/archivio", 200),
+        ("review page", "/ripasso", 200),
         ("stats page", "/statistiche", 200),
         ("unknown issue is a 404", "/fascicolo/" + MISSING_ISSUE_ID, 404),
         ("unknown issue solutions is a 404", "/fascicolo/" + MISSING_ISSUE_ID + "/soluzioni", 404),

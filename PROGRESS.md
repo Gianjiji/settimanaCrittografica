@@ -45,7 +45,7 @@ dedicati.
 
 **P3, solo dopo che P0 e P1 sono chiusi**
 
-- [ ] Pagina di ripasso che estrae gli esercizi delle famiglie con piu' errori nel registro.
+- [x] Pagina di ripasso che estrae gli esercizi delle famiglie con piu' errori nel registro.
 - [ ] Esportazione del fascicolo in un file stampabile.
 - [ ] Cronometro per scheda, con confronto rispetto al tempo dichiarato.
 
@@ -540,3 +540,40 @@ verifica su **tutte e 26 le lettere** che il cifrario composto dia lo stesso ris
 applicare i due cifrari in sequenza. E' il motivo per cui il sabotaggio su A produce 800
 fallimenti invece di 400.
 Gate: unittest 193 test OK, smoke OK. 52 arretrati ancora a 9 schede.
+
+### Iterazione 15, 2026-08-13
+Task: prima voce P3, pagina di ripasso.
+**Ho saltato le tre voci P2 rimanenti** (Feistel, Hill, El Gamal). Motivo: il blocco della
+registrazione e' **una sola decisione editoriale che copre tutte e cinque le voci P2**, non
+cinque blocchi distinti, ed e' gia' documentato in `## Bloccato`. Il PROMPT dice di passare
+alla voce successiva dopo aver scritto quella sezione. Scrivere altri tre moduli inattivi
+aggiungeva codice che non puo' entrare in produzione; le P3 invece sono sbloccate e si vedono
+subito. Se la decisione sul numero di schede viene sciolta, i tre moduli mancanti sono lavoro
+meccanico sul modello di `diffie_hellman.py` e `affine.py`.
+Fatto: rotta `/ripasso`, `templates/review.html`, voce nel menu, `tests/test_review.py` con
+15 test, e la rotta aggiunta a `tools/smoke.py`.
+Scelta di progetto che ha semplificato tutto: la pagina **ripropone schede vere dei fascicoli
+recenti**, non esercizi nuovi. Cosi' `issue_id` piu' numero identificano gia' l'esercizio e
+`/api/verifica` funziona **senza modifiche**. Niente API nuova, niente stato nuovo.
+Il ranking usa la coppia `(famiglia, difficolta')`, non la sola famiglia: RSA a difficolta' 3
+puo' essere una debolezza mentre la stessa famiglia a difficolta' 1 no. Serve un minimo di 3
+tentativi perche' una percentuale voglia dire qualcosa.
+
+**Il mutation testing ha smascherato tre test miei che passavano per fortuna**, ed e' la parte
+da ricordare di questa iterazione:
+1. Il test sull'ordinamento usava `catena_rsa` come peggiore, che pero' e' anche la prima in
+   ordine alfabetico: ordinare per nome dava lo stesso risultato. Riscritto con
+   `segreto_spezzato` come peggiore, che in ordine alfabetico e' ultima.
+2. Il test sul limite di schede non mordeva perche' il codice applicava il taglio **due
+   volte**, con un `break` e con uno slice: sabotandone uno, l'altro lo mascherava.
+3. Il filtro `KNOWN_KINDS` era **ridondante**: la ricerca a valle cerca puzzle con quella
+   famiglia e per una famiglia inesistente non trova nulla comunque. Rimosso, con un commento
+   al suo posto.
+Quindi due ridondanze reali nel codice sono state trovate dai test, non lette a occhio.
+Aggiunto anche il test che mancava: le schede proposte devono avere **la difficolta'** che
+risulta debole, non solo la famiglia. Senza, ignorare la difficolta' passava inosservato.
+Ora tutte e cinque le mutazioni sulla logica di selezione vengono colte.
+Invariante 4 rispettato anche qui: nessuna risposta nel markup, nessun passaggio di soluzione,
+solo attributi dati strutturali. I test lo verificano risalendo dalle schede proposte ai
+puzzle veri.
+Gate: unittest 208 test OK, smoke OK (7 controlli, ora con `/ripasso`).
