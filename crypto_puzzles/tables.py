@@ -35,3 +35,13 @@ INVERSE_TABLES = {
     13: {1: 1, 2: 7, 3: 9, 4: 10, 5: 8, 6: 11, 7: 2, 8: 5, 9: 3, 10: 4, 11: 6, 12: 12},
     26: {1: 1, 3: 9, 5: 21, 7: 15, 9: 3, 11: 19, 15: 7, 17: 23, 19: 11, 21: 5, 23: 17, 25: 25},
 }
+
+
+# Diffie-Hellman. Kept to Z11 and Z13 so the table of powers stays ten or twelve rows,
+# which is what a student can build by hand during an exam.
+DH_MODULI = (11, 13)
+
+PRIMITIVE_ROOTS = {
+    11: (2, 6, 7, 8),
+    13: (2, 6, 7, 11),
+}

@@ -35,8 +35,8 @@ Ogni generatore va aggiunto con: modulo in `crypto_puzzles/`, tre difficolta', t
 `steps` da esame, `meta_value` e `meta_label`, registrazione in `GENERATORS`, property test
 dedicati.
 
-- [ ] Diffie-Hellman: verifica di radice primitiva, logaritmo discreto in Z11 o Z13, chiave
-      condivisa.
+- [~] Diffie-Hellman: verifica di radice primitiva, logaritmo discreto in Z11 o Z13, chiave
+      condivisa. Modulo e property test fatti; **registrazione bloccata**, vedi `## Bloccato`.
 - [ ] Cifrario affine: chiave da due corrispondenze note, validita' del parametro a, cifratura
       composta.
 - [ ] Rete di Feistel a due round con funzione di round elementare, su otto bit.
@@ -48,6 +48,43 @@ dedicati.
 - [ ] Pagina di ripasso che estrae gli esercizi delle famiglie con piu' errori nel registro.
 - [ ] Esportazione del fascicolo in un file stampabile.
 - [ ] Cronometro per scheda, con confronto rispetto al tempo dichiarato.
+
+## Bloccato
+
+**P2, registrazione dei nuovi generatori in `GENERATORS`.** Il modulo Diffie-Hellman e' scritto
+e testato, ma **non registrato**, perche' registrarlo violerebbe l'invariante 2.
+
+Cosa ho provato: aggiungere un quarto modulo a `GENERATORS`.
+
+L'errore esatto, misurato simulando l'aggiunta di un quarto generatore su `2026-W33`:
+
+```
+con 3 generatori -> 9 schede
+con 4 generatori -> 12 schede
+schede diverse fra le prime 9: 9 su 9
+```
+
+Il motivo e' in `_build_puzzles`: il fascicolo e' il prodotto `3 sezioni x len(GENERATORS)`,
+e dentro ogni sezione c'e' `rng.shuffle(order)`. Un quarto elemento cambia sia il numero di
+schede sia il consumo del generatore casuale, quindi **tutti gli arretrati verrebbero
+riscritti**. L'invariante 2 lo vieta in modo esplicito, e l'invariante dice che se un
+cambiamento la viola e' il cambiamento a essere sbagliato. Sono anche in conflitto il titolo
+"Nove schede e una parola" e la chiave finale come somma delle nove risposte.
+
+Due strade alternative, **entrambe da decidere fuori da questo loop** perche' cambiano il
+prodotto, non il codice:
+
+1. **Rotazione a numero costante.** Tenere nove schede scegliendo tre generatori su N per
+   fascicolo. Richiede comunque un criterio che lasci intatti gli arretrati, per esempio
+   fissare l'insieme dei tre generatori per tutti gli `issue_id` fino a una settimana di
+   taglio e usare la rotazione solo dopo. Costo: la logica di selezione diventa condizionale
+   sulla data, cosa che il PROMPT scoraggia ("non cambiare la logica del seme settimanale").
+2. **Fascicolo piu' lungo dichiarato.** Accettare dodici schede e aggiornare titolo, istruzioni
+   e chiave finale. Costo: gli arretrati cambiano comunque, quindi va accettato che i
+   fascicoli gia' risolti non siano piu' riproducibili. E' una decisione editoriale.
+
+Finche' non si sceglie, il modulo resta pronto e verificato ma inattivo. Le altre quattro voci
+P2 sono nella stessa condizione: scriverle e' utile, registrarle no.
 
 ## Proposte scartate per vincolo di dipendenze
 
@@ -452,3 +489,33 @@ Cose da sapere per chi continua:
   lessico crittografico. Non e' una fuga: e' protetta dalla chiave di Cesare. Non tentare di
   "correggerlo" cambiando `META_WORDS`, riscriverebbe tutti gli arretrati.
 Gate: unittest 147 test OK, smoke OK. Albero pulito.
+
+### Iterazione 13, 2026-08-13
+Task: prima voce P2, generatore Diffie-Hellman.
+Fatto: `crypto_puzzles/diffie_hellman.py` con tre difficolta', `DH_MODULI` e `PRIMITIVE_ROOTS`
+in `tables.py`, e `tests/test_diffie_hellman.py` con 20 test su 400 semi per difficolta'.
+**Non registrato in `GENERATORS`, ed e' il punto centrale dell'iterazione.** Prima di scrivere
+una riga ho controllato `_build_puzzles` e verificato sul campo cosa succede con un quarto
+generatore: 12 schede invece di 9, e **tutte e nove le schede esistenti cambiano**. Il
+fascicolo e' `3 sezioni x len(GENERATORS)`, e lo `rng.shuffle` interno consuma casualita'
+diversa. Violerebbe l'invariante 2 e smentirebbe il titolo "Nove schede e una parola".
+Dettagli e due strade alternative nella sezione `## Bloccato`. La decisione e' editoriale, non
+tecnica: o si accetta che gli arretrati cambino, o si introduce una selezione condizionata
+alla data, che il PROMPT scoraggia. Non e' una scelta che spetta a questo loop.
+Le tre schede: chiave condivisa (facile), logaritmo discreto (media), riconoscere quale di due
+basi e' radice primitiva piu' l'ordine dell'altra (difficile, due campi).
+I test non controllano solo la forma ma **la matematica**: la chiave condivisa deve coincidere
+con quella che calcola Bob, l'esponente deve risolvere davvero la sua equazione, la base del
+logaritmo deve essere un generatore, esattamente uno dei due candidati deve esserlo, e
+l'ordine dichiarato deve dividere p-1 e riportare la base a 1. Verificato con mutation
+testing: tre sabotaggi distinti del generatore, ognuno colto su tutti e 400 i semi.
+Ristretto a Z11 e Z13 come indica il backlog: la tabella delle potenze resta di dieci o dodici
+righe, costruibile a mano. Con Z23 sarebbero ventidue righe, fuori dal "calcolo a mente".
+Errore mio, gia' visto nell'iterazione 2 e ripetuto: il test "il primo aiuto non da' la
+risposta" cercava il valore come sottostringa e dava 30 falsi positivi, perche' il numero nel
+primo aiuto e' la **base** e ogni tanto coincide col risultato. Ora la regola e' precisa: un
+numero gia' stampato nell'enunciato non e' una fuga, perche' non aggiunge informazione; lo
+sarebbe solo un numero che compare per la prima volta nel primo aiuto.
+Aggiunto un test che verifica che il modulo **non** sia in `GENERATORS` e che il fascicolo
+faccia ancora nove schede: se qualcuno lo registrasse per distrazione, il gate lo ferma.
+Gate: unittest 167 test OK, smoke OK. 52 fascicoli arretrati verificati, tutti a 9 schede.
