@@ -19,13 +19,15 @@
 
 **P1, usabilita'**
 
-- [ ] Invio con tasto Invio su ogni campo, e focus che resta dove serve dopo la verifica.
+- [x] Invio con tasto Invio su ogni campo, e focus che resta dove serve dopo la verifica.
 - [ ] Controllo del layout a 360 pixel di larghezza: nessun overflow orizzontale, campi e
       bottoni raggiungibili con il pollice.
 - [ ] Messaggio di errore quando la verifica fallisce per rete assente, distinto da risposta
       sbagliata.
 - [ ] Stampa: il fascicolo su carta deve restare leggibile e senza elementi interattivi.
 - [ ] Contatore di schede risolte in cima al fascicolo.
+- [ ] `aria-invalid` sui campi errati. Aggiunta nell'iterazione 7: oggi l'errore su un campo
+      e' comunicato solo dal colore, quindi non arriva a chi usa uno screen reader.
 
 **P2, nuovi generatori, uno per iterazione**
 
@@ -238,3 +240,36 @@ Gate: unittest 92 test OK, smoke OK. Albero pulito.
 
 **Stato: tutte le voci P0 sono chiuse.** Restano le cinque P1, quindi niente stringa di
 completamento.
+
+### Iterazione 7, 2026-08-13
+Task: invio con Invio su ogni campo, e focus dopo la verifica. Prima voce P1.
+Trovato subito: **l'invio con Invio funzionava gia'**, per submission implicita del browser.
+Ogni form ha un `<button type="submit">`, e questo basta perche' Invio da un campo di testo
+invii il form. Non serviva codice: serviva un test che impedisse di perdere la proprieta'.
+Fatto: `tests/test_keyboard.py`, 12 test. Sette fissano il contratto del markup che rende
+possibile l'invio con Invio: un solo bottone submit per form, nessun input fuori dal suo form,
+tutti i campi di tipo text, nessuna textarea (che si terrebbe l'Invio per andare a capo),
+e il caso delle schede a due campi.
+Il difetto vero era il **focus**: dopo una verifica sbagliata restava sull'ultimo campo
+digitato, non sul primo campo errato, quindi per correggere si doveva tornare col mouse.
+Aggiunti `firstWrongInput` e `focusForRetry` in `app.js`: su risposta sbagliata il focus va
+sul primo campo errato e ne seleziona il testo, cosi' il tasto successivo inizia la correzione.
+Scelte: su risposta **giusta** il focus non viene spostato, e su **errore del server** non
+viene rubato. Saltare alla scheda successiva sarebbe stato piu' invadente che utile, e
+sposterebbe la pagina sotto gli occhi di chi sta leggendo l'esito.
+Limite onesto di questi test, da tenere presente: i gate girano senza browser, quindi i
+quattro test sul focus sono **strutturali**, guardano il sorgente di `app.js`. Non provano il
+comportamento.
+Per avere una prova vera ho scritto un banco separato in
+`scratchpad/domharness.js`: un DOM minimo e un `fetch` finto che caricano `static/app.js` con
+node ed esercitano davvero i rami. Sei scenari verdi: secondo campo errato, primo campo
+errato, risposta giusta, parola errata senza array `fields`, errore dal server, messaggio
+mostrato. Poi mutation test: tolta la chiamata a `focusForRetry`, 4 scenari su 6 diventano
+rossi, quindi il banco non e' compiacente.
+**Il banco resta fuori dal repository di proposito.** I gate devono restare cross platform e
+senza dipendenze, e node non e' garantito su tutte le macchine. Se una prossima iterazione
+tocca `app.js`, il banco va rifatto: sono una sessantina di righe.
+Proposta annotata, non implementata per non accorpare voci: i campi errati oggi sono segnalati
+solo dal colore (classe `errato`). Andrebbe aggiunto `aria-invalid`, che e' la stessa
+informazione resa disponibile a chi non vede il colore. Una riga in `markFields`.
+Gate: unittest 104 test OK, smoke OK. Albero pulito.

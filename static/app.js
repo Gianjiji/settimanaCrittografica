@@ -23,6 +23,23 @@
     });
   }
 
+  function firstWrongInput(form, fields) {
+    var inputs = form.querySelectorAll("input");
+    for (var index = 0; index < inputs.length; index += 1) {
+      if (!fields || !fields[index]) { return inputs[index]; }
+    }
+    return inputs[0] || null;
+  }
+
+  function focusForRetry(form, fields) {
+    // After a wrong answer the caret belongs in the field to fix, not wherever it was
+    // left, so the next keystroke starts the correction.
+    var target = firstWrongInput(form, fields);
+    if (!target) { return; }
+    target.focus();
+    if (typeof target.select === "function") { target.select(); }
+  }
+
   document.querySelectorAll("form.risposta").forEach(function (form) {
     form.addEventListener("submit", function (event) {
       event.preventDefault();
@@ -52,6 +69,7 @@
           esito.textContent = isWord
             ? "Non e' questa. Ricontrolla la somma delle nove risposte."
             : "Non torna. Rileggi l'aiuto 2 prima di riprovare.";
+          focusForRetry(form, data.fields);
         }
       }).catch(function () {
         esito.textContent = "Verifica non disponibile offline.";
