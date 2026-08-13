@@ -26,7 +26,7 @@
       sbagliata.
 - [x] Stampa: il fascicolo su carta deve restare leggibile e senza elementi interattivi.
 - [x] Contatore di schede risolte in cima al fascicolo.
-- [ ] `aria-invalid` sui campi errati. Aggiunta nell'iterazione 7: oggi l'errore su un campo
+- [x] `aria-invalid` sui campi errati. Aggiunta nell'iterazione 7: oggi l'errore su un campo
       e' comunicato solo dal colore, quindi non arriva a chi usa uno screen reader.
 
 **P2, nuovi generatori, uno per iterazione**
@@ -391,3 +391,64 @@ isola la riga che aggiunge `risolta` e pretende la chiamata sulla stessa riga, c
 la scheda e ricontare non possono separarsi. Attenzione a questa forma di test finto: era la
 seconda volta in poche iterazioni.
 Gate: unittest 141 test OK, smoke OK. Albero pulito.
+
+### Iterazione 12, 2026-08-13
+Task: `aria-invalid` sui campi errati. **Ultima voce P1.**
+Fatto: `tests/test_field_state.py`, 6 test, piu' otto righe in `markFields`.
+Un campo sbagliato era segnalato solo dalla classe `errato`, cioe' solo dal colore. Ora porta
+anche `aria-invalid="true"`, e l'attributo viene **rimosso** quando il campo torna corretto.
+Messo dentro `markFields`, nello stesso punto che decide il colore: due posti che decidono la
+stessa cosa si sfaserebbero. C'e' un test che verifica che `aria-invalid` non compaia altrove.
+Verifica con node, banco in `scratchpad/ariaharness.js`, 7 controlli verdi. Il caso che conta
+di piu' e' l'ultimo: **quando la rete cade lo stato di invalidita' viene ripulito su tutti i
+campi**, perche' nessun verdetto e' stato emesso. Senza, un campo sarebbe rimasto annunciato
+come sbagliato per una verifica che non e' mai avvenuta. Funziona perche' l'iterazione 9 ha
+messo `markFields(form, null)` nel ramo di fallimento: le due voci si incastrano.
+Verificato anche che una pagina appena servita non contenga `aria-invalid`: e' lo stato di un
+verdetto, non una proprieta' del campo.
+
+## Riepilogo, dodici iterazioni
+
+Tutte le voci **P0 e P1 sono chiuse**: 12 su 20. Restano aperte le 5 voci P2, i nuovi
+generatori, e le 3 voci P3.
+
+Difetti reali trovati e corretti, in ordine di gravita':
+1. **I placeholder rivelavano la risposta** (iter. 2). Gli esempi fissi del coincidenzario
+   coincidevano con l'IC vero per certi semi, e il campo di Shamir mostrava `0..p-1`, dove
+   `p-1` e' il segreto quando e' massimo. Violava l'invariante 4.
+2. **Tre cause distinte di 500 nell'API** (iter. 3), tutte dalla stessa radice: `x or {}` non
+   filtra, perche' una lista o un dict non vuoti sono truthy. Serviva un controllo di tipo.
+3. **Errori di lock SQLite in concorrenza** (iter. 6), quattro difetti, fra cui uno
+   **introdotto dalla correzione stessa**: la PRAGMA WAL su ogni connessione causava un 25%
+   di fallimenti intermittenti.
+4. **Un errore del server veniva mostrato come risposta sbagliata** (iter. 9): `post()` non
+   guardava `response.ok`.
+5. **Percentuali di errore incoerenti** (iter. 4): `round()` arrotonda i mezzi al pari, quindi
+   12.5 dava 12 e 37.5 dava 38.
+6. **Il numero della scheda spariva in stampa** (iter. 10): bianco su fondo scuro, e i browser
+   non stampano gli sfondi.
+7. **Controlli troppo piccoli per il pollice** (iter. 8): gli aiuti erano alti 18px contro 44.
+8. **`DB_PATH` senza cartella faceva crashare l'app** (iter. 4).
+9. Focus non spostato sul campo da correggere (iter. 7), contatore assente (iter. 11),
+   invalidita' comunicata solo dal colore (iter. 12).
+
+Due voci non hanno prodotto correzioni, ed e' un esito legittimo: l'escaping era gia' corretto
+(iter. 5) e l'invio con Invio funzionava gia' per submission implicita (iter. 7).
+
+Da 14 test iniziali a 147, piu' `tools/smoke.py`. Ogni correzione e' stata verificata con
+mutation testing, rimettendo il difetto e controllando che il test diventasse rosso.
+
+Cose da sapere per chi continua:
+- **I test sul client sono strutturali**, guardano il sorgente di `app.js`. I gate girano
+  senza browser e node non e' garantito. Le prove comportamentali vere le ho fatte con quattro
+  banchi DOM sotto node, tenuti **fuori dal repository** in `scratchpad/`: `domharness.js`,
+  `errharness.js`, `countharness.js`, `ariaharness.js`. Se tocchi `app.js`, vanno rifatti.
+- **Chrome non raggiunge il server locale in questo ambiente** e non scende sotto la sua
+  larghezza minima di finestra. Non riprovarci senza prima verificare l'identita' del
+  documento: ci sono cascato e ho riportato misure prese sulla pagina di errore.
+- Il layout a 360px e le altezze dei controlli sono verificati **staticamente**. Un controllo
+  a occhio su un telefono vero resta da fare.
+- La parola della settimana compare come testo normale nelle pagine, perche' `META_WORDS` e'
+  lessico crittografico. Non e' una fuga: e' protetta dalla chiave di Cesare. Non tentare di
+  "correggerlo" cambiando `META_WORDS`, riscriverebbe tutti gli arretrati.
+Gate: unittest 147 test OK, smoke OK. Albero pulito.

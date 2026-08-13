@@ -34,6 +34,13 @@
     Array.prototype.forEach.call(inputs, function (input, index) {
       var ok = fields ? fields[index] : true;
       input.classList.toggle("errato", !ok);
+      // The colour alone says nothing to a screen reader, or to anyone who cannot
+      // tell it apart, so the state travels with the field itself.
+      if (ok) {
+        input.removeAttribute("aria-invalid");
+      } else {
+        input.setAttribute("aria-invalid", "true");
+      }
     });
   }
 
