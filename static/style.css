@@ -217,6 +217,9 @@ a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visibl
   body { background: #fff; padding: 0; font-size: 11pt; }
   .menu, .risposta, .aiuti, .chiusura, .verso-soluzioni, .prezzo { display: none; }
   .scheda { box-shadow: none; page-break-inside: avoid; }
+  /* Browsers drop background colours when printing, so white on navy would come out
+     white on white and the card number would simply vanish from the sheet. */
+  .scheda-numero { background: transparent; color: var(--inchiostro); border: 1px solid var(--inchiostro); }
 }
 
 .contributo { margin: 1rem 0 0; font-size: 0.8rem; color: var(--matita);

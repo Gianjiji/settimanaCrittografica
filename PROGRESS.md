@@ -24,7 +24,7 @@
       bottoni raggiungibili con il pollice.
 - [x] Messaggio di errore quando la verifica fallisce per rete assente, distinto da risposta
       sbagliata.
-- [ ] Stampa: il fascicolo su carta deve restare leggibile e senza elementi interattivi.
+- [x] Stampa: il fascicolo su carta deve restare leggibile e senza elementi interattivi.
 - [ ] Contatore di schede risolte in cima al fascicolo.
 - [ ] `aria-invalid` sui campi errati. Aggiunta nell'iterazione 7: oggi l'errore su un campo
       e' comunicato solo dal colore, quindi non arriva a chi usa uno screen reader.
@@ -339,3 +339,30 @@ Due errori miei in questa iterazione, entrambi corretti:
 Il service worker intercetta solo le GET, quindi non maschera i fallimenti delle POST all'API:
 verificato prima di toccare il codice.
 Gate: unittest 122 test OK, smoke OK. Albero pulito.
+
+### Iterazione 10, 2026-08-13
+Task: stampa leggibile e senza elementi interattivi.
+Fatto: `tests/test_print.py`, 7 test. Una riga di CSS aggiunta.
+Il blocco `@media print` c'era gia' e nascondeva correttamente menu, form, aiuti e link alle
+soluzioni. Ho incrociato i selettori nascosti col DOM vero delle due pagine stampabili: **109
+elementi interattivi sul fascicolo, tutti coperti**. Nessun controllo sfugge.
+Trovato invece un difetto di leggibilita' che nessuno vedrebbe finche' non stampa:
+**`.scheda-numero` aveva fondo blu e testo bianco.** I browser non stampano i colori di sfondo
+per default, quindi sul foglio restava bianco su bianco e **il numero della scheda spariva**.
+Su un fascicolo di nove esercizi numerati e' esattamente l'informazione che serve. Corretto
+nel blocco print con fondo trasparente, testo scuro e un bordo che tiene la forma del riquadro.
+Cercate altre occorrenze dello stesso schema: solo `.risposta button`, che pero' sta dentro
+`.risposta`, gia' nascosta in stampa. Il test lo verifica in generale, non caso per caso:
+qualunque regola con testo bianco deve essere nascosta in stampa oppure avere un colore
+esplicito nel blocco print.
+Il test piu' utile e' quello che deriva i selettori nascosti **dal CSS** e li verifica contro
+gli antenati di ogni elemento interattivo **del DOM**: non elenca i controlli a mano, quindi
+un controllo aggiunto domani fuori dai contenitori nascosti lo fa fallire da solo.
+Errore mio: la prima versione pretendeva che ogni pagina stampabile avesse controlli da
+nascondere, e falliva sulla pagina delle soluzioni, che giustamente non ne ha. Ora la
+non-vacuita' e' un test separato sul solo fascicolo.
+Verificato con mutation testing: tolta la correzione di `.scheda-numero` il test la segnala;
+tolto `.risposta` dai selettori nascosti diventano rossi form, input e button separatamente.
+Non toccato di proposito: il timbro "risolto" continua a stamparsi. E' informazione utile su
+carta, sapere quali schede erano gia' chiuse, e non e' un elemento interattivo.
+Gate: unittest 129 test OK, smoke OK. Albero pulito.
