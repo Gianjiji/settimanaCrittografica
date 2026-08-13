@@ -99,6 +99,9 @@ main, .testata, .chiusura { max-width: 44rem; margin: 0 auto; }
 .scheda-numero { background: var(--inchiostro); color: #fff; padding: 0.15rem 0.45rem;
                  letter-spacing: 0.06em; }
 .scheda-tempo { margin-left: auto; }
+.cronometro { margin-left: 0.6rem; font-variant-numeric: tabular-nums; color: var(--matita); }
+.cronometro.svelto { color: var(--penna); }
+.cronometro.lento { color: var(--timbro); }
 .scheda h3 { margin: 0.7rem 0 0.4rem; font-size: 1.18rem; }
 .consegna { margin: 0 0 1rem; }
 
@@ -215,7 +218,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visibl
 
 @media print {
   body { background: #fff; padding: 0; font-size: 11pt; }
-  .menu, .risposta, .aiuti, .chiusura, .verso-soluzioni, .prezzo, .esporta { display: none; }
+  .menu, .risposta, .aiuti, .chiusura, .verso-soluzioni, .prezzo, .esporta, .cronometro { display: none; }
   .scheda { box-shadow: none; page-break-inside: avoid; }
   /* Browsers drop background colours when printing, so white on navy would come out
      white on white and the card number would simply vanish from the sheet. */

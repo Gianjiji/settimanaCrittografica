@@ -24,6 +24,7 @@
       <span class="scheda-numero">{{ "%02d"|format(puzzle.number) }}</span>
       <span class="scheda-famiglia">{{ puzzle.family }}</span>
       <span class="scheda-tempo">{{ puzzle.minutes }} min</span>
+      <span class="cronometro" data-minutes="{{ puzzle.minutes }}" role="status"></span>
     </div>
     <h3>{{ puzzle.title }}</h3>
     <p class="consegna">{{ puzzle.statement }}</p>

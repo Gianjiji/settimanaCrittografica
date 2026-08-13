@@ -12,7 +12,9 @@ from crypto_puzzles.fascicle import build_issue, current_issue_id, recent_issue_
 
 MISSING_ISSUE_ID = "1970-W01"
 SAMPLE_SIZE = 52
-STRUCTURAL_DATA_ATTRIBUTES = {"data-issue", "data-number", "data-index"}
+# Ordinals and the declared time. None of them is a result, and each is already printed
+# as visible text on the card, so they add nothing a solver could not read anyway.
+STRUCTURAL_DATA_ATTRIBUTES = {"data-issue", "data-number", "data-index", "data-minutes"}
 
 
 def answer_pattern(value):
@@ -110,6 +112,8 @@ class AnswerLeakTest(unittest.TestCase):
                 self.assertLess(int(value), 4)
             for value in re.findall(r'\bdata-issue="([^"]*)"', html):
                 self.assertEqual(value, issue.issue_id)
+            declared = [int(v) for v in re.findall(r'\bdata-minutes="([^"]*)"', html)]
+            self.assertEqual(declared, [p.minutes for p in issue.puzzles])
 
     def test_no_answer_in_value_attributes(self):
         """Inputs must ship empty: no value, title or alt may carry an answer."""

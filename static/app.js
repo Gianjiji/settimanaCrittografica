@@ -61,6 +61,37 @@
     if (typeof target.select === "function") { target.select(); }
   }
 
+  function formatSeconds(seconds) {
+    var minutes = Math.floor(seconds / 60);
+    var rest = seconds % 60;
+    return minutes + ":" + (rest < 10 ? "0" : "") + rest;
+  }
+
+  function startStopwatch(card) {
+    var display = card.querySelector(".cronometro");
+    if (!display || display.dataset.startedAt) { return; }
+    display.dataset.startedAt = String(Date.now());
+    var tick = function () {
+      var seconds = Math.floor((Date.now() - Number(display.dataset.startedAt)) / 1000);
+      display.textContent = formatSeconds(seconds);
+    };
+    tick();
+    display.dataset.ticker = String(window.setInterval(tick, 1000));
+  }
+
+  function stopStopwatch(card) {
+    var display = card.querySelector(".cronometro");
+    if (!display || !display.dataset.startedAt) { return; }
+    window.clearInterval(Number(display.dataset.ticker));
+    var seconds = Math.floor((Date.now() - Number(display.dataset.startedAt)) / 1000);
+    var declared = Number(display.dataset.minutes) * 60;
+    display.textContent = formatSeconds(seconds) + " su " + display.dataset.minutes + " min";
+    // Slower than the card claims is worth knowing; faster is worth seeing too.
+    display.classList.toggle("lento", seconds > declared);
+    display.classList.toggle("svelto", seconds <= declared);
+    delete display.dataset.startedAt;
+  }
+
   function refreshCounter() {
     // Recounted from the cards themselves: no tally to keep in step, so it cannot drift.
     var counter = document.querySelector(".contatore");
@@ -71,6 +102,14 @@
   }
 
   document.querySelectorAll("form.risposta").forEach(function (form) {
+    var card = form.closest(".scheda");
+    if (card && !card.classList.contains("risolta")) {
+      // The clock starts when the reader does, not when the page loads.
+      form.querySelectorAll("input").forEach(function (input) {
+        input.addEventListener("focus", function () { startStopwatch(card); });
+      });
+    }
+
     form.addEventListener("submit", function (event) {
       event.preventDefault();
       var esito = form.querySelector(".esito");
@@ -93,7 +132,7 @@
         if (data.correct) {
           esito.textContent = "";
           var card = form.closest(".scheda") || form.closest(".sezione");
-          if (card) { card.classList.add("risolta"); refreshCounter(); }
+          if (card) { card.classList.add("risolta"); stopStopwatch(card); refreshCounter(); }
           if (isWord) { esito.textContent = "Parola esatta. Fascicolo chiuso."; }
         } else {
           esito.textContent = isWord

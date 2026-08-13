@@ -47,7 +47,7 @@ dedicati.
 
 - [x] Pagina di ripasso che estrae gli esercizi delle famiglie con piu' errori nel registro.
 - [x] Esportazione del fascicolo in un file stampabile.
-- [ ] Cronometro per scheda, con confronto rispetto al tempo dichiarato.
+- [x] Cronometro per scheda, con confronto rispetto al tempo dichiarato.
 
 ## Bloccato
 
@@ -609,3 +609,36 @@ minuti, etichette dei campi e `meta_label`. Stessa famiglia di errore di `data-n
 nell'iterazione 2: sui numeri piccoli la ricerca per token trova rumore, serve sapere cosa e'
 gia' pubblico.
 Gate: unittest 230 test OK, smoke OK (8 controlli).
+
+### Iterazione 17, 2026-08-13
+Task: terza voce P3, cronometro per scheda. **Ultima voce non bloccata del backlog.**
+Fatto: `tests/test_timer.py` con 13 test, cronometro in `app.js`, `data-minutes` nel template,
+stile in `style.css`.
+**Vive interamente nel browser: niente viene salvato.** Scelta deliberata. Registrare i tempi
+avrebbe richiesto una colonna nuova in `storage.SCHEMA`, e lo schema del registro e' legato
+agli arretrati. Il backlog chiede un cronometro col confronto, non uno storico dei tempi. C'e'
+un test che verifica che nulla di temporale venga inviato al server e che lo schema non abbia
+colonne di tempo.
+Il cronometro parte al **primo focus su un campo**, non al caricamento della pagina: aprire il
+fascicolo per leggerlo non deve far partire un orologio. Si ferma quando la scheda e' risolta,
+e mostra "2:00 su 3 min", con classe `svelto` o `lento` a seconda del confronto.
+Nascosto in stampa e assente dall'export: un cronometro su carta non vuole dire niente.
+Ho dovuto aggiungere `data-minutes`, e il test whitelist dell'iterazione 2 lo ha **giustamente
+bloccato**. Non l'ho aggiunto a scatola chiusa: la whitelist ora lo accetta ma un test
+verifica che il suo valore sia esattamente il tempo dichiarato di ogni scheda. E' un numero
+strutturale, gia' visibile come testo, non un risultato. Fa piacere che quella guardia scritta
+quindici iterazioni fa abbia funzionato senza che me ne ricordassi.
+Verifica vera con node, banco in `scratchpad/timerharness.js`, con **orologio controllato**
+(`Date.now` sostituito) invece che con attese reali: 8 controlli verdi, dal formato `1:05` dopo
+65 secondi fino alle due classi svelto e lento. Mutation testing: tolto il confronto col tempo
+dichiarato, tolto lo stop, rotto il formato mm:ss, il banco node li coglie tutti e tre; la
+suite Python ne coglie uno. E' la solita asimmetria gia' annotata, e qui si vede bene: sui
+comportamenti temporali i test strutturali non bastano.
+Gate: unittest 243 test OK, smoke OK.
+
+## Stato finale
+
+Chiuse **tutte** le voci P0, P1 e P3. Delle cinque P2, due hanno modulo e property test
+completi ma **non registrati**, e tre non sono state scritte: tutte e cinque dipendono dalla
+stessa decisione editoriale descritta in `## Bloccato`, che non e' una scelta tecnica.
+Da 14 test a 243, piu' `tools/smoke.py` passato da 8 a 8 controlli su tutte le rotte.
