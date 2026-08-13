@@ -39,7 +39,8 @@ dedicati.
       condivisa. Modulo e property test fatti; **registrazione bloccata**, vedi `## Bloccato`.
 - [~] Cifrario affine: chiave da due corrispondenze note, validita' del parametro a, cifratura
       composta. Modulo e property test fatti; **registrazione bloccata**, vedi `## Bloccato`.
-- [ ] Rete di Feistel a due round con funzione di round elementare, su otto bit.
+- [~] Rete di Feistel a due round con funzione di round elementare, su otto bit.
+      Modulo e property test fatti; **registrazione bloccata**, vedi `## Bloccato`.
 - [ ] Cifrario di Hill due per due: validita' della matrice e cifratura di una parola breve.
 - [ ] El Gamal in Z11: chiave pubblica, cifratura e decifratura con k piccolo.
 
@@ -636,9 +637,39 @@ suite Python ne coglie uno. E' la solita asimmetria gia' annotata, e qui si vede
 comportamenti temporali i test strutturali non bastano.
 Gate: unittest 243 test OK, smoke OK.
 
+### Iterazione 18, 2026-08-13
+Task: terza voce P2, rete di Feistel. Stesso blocco sulla registrazione.
+Ho ripreso le P2 perche' con le P3 chiuse **non restava altro**: l'obiezione dell'iterazione 15,
+non accumulare moduli inattivi invece di consegnare valore, non vale piu' se non c'e' altro
+valore da consegnare.
+Fatto: `crypto_puzzles/feistel.py` e `tests/test_feistel.py`, 24 test su 400 semi per
+difficolta'. Le tre schede: un round, due round, e decifratura di due round.
+**Conflitto con l'invariante 1, risolto senza piegarlo.** Una rete di Feistel su otto bit
+lavora naturalmente modulo 16, ma 16 **non e' fra i moduli ammessi** (11, 13, 17, 19, 23, 26).
+Invece di aggiungerlo ho progettato la funzione di round **solo con operazioni sui bit**: xor
+con la chiave, poi rotazione di una posizione su quattro bit. Nessuna aritmetica modulare,
+quindi l'invariante non viene toccato. C'e' un test che verifica che il sorgente non contenga
+`% 16` ne' `modinv`.
+I dati sono mostrati in binario a quattro bit, che e' anche la forma d'esame: lo xor si fa a
+occhio, bit per bit.
+**Errore di metodo che ho corretto, ed e' il piu' insidioso visto finora.** Il primo giro di
+mutation testing dava quattro sabotaggi su cinque colti, ma "F senza rotazione" passava
+**verde**. Motivo: i test matematici confrontavano gli esercizi con `feistel.feistel_round`,
+cioe' con la **stessa primitiva mutata**. Cambiando F si muovevano entrambi i lati del
+confronto, e il test non poteva accorgersene: e' una tautologia, non una verifica.
+Risolto scrivendo nel test un'**implementazione indipendente** di F e del round, e
+confrontando gli esercizi con quella. Aggiunti anche due test diretti: F deve coincidere con
+l'oracolo su tutte le 256 coppie, e F non deve essere indistinguibile da uno xor puro.
+Ora il sabotaggio produce 1370 fallimenti invece di zero.
+Lezione da tenere: **un test che confronta il generatore con la funzione che il generatore
+usa non verifica niente.** Vale anche per gli altri moduli: `diffie_hellman` usa `pow` della
+libreria standard e `affine` ricalcola a mano nei test, quindi li' l'oracolo e' gia'
+indipendente, ma vale la pena ricontrollarlo se qualcuno li tocca.
+Gate: unittest 267 test OK, smoke OK. 52 arretrati ancora a 9 schede.
+
 ## Stato finale
 
-Chiuse **tutte** le voci P0, P1 e P3. Delle cinque P2, due hanno modulo e property test
-completi ma **non registrati**, e tre non sono state scritte: tutte e cinque dipendono dalla
+Chiuse **tutte** le voci P0, P1 e P3. Delle cinque P2, tre hanno modulo e property test
+completi ma **non registrati**, e due non sono state scritte: tutte e cinque dipendono dalla
 stessa decisione editoriale descritta in `## Bloccato`, che non e' una scelta tecnica.
-Da 14 test a 243, piu' `tools/smoke.py` passato da 8 a 8 controlli su tutte le rotte.
+Da 14 test a 267, piu' `tools/smoke.py` con 8 controlli su tutte le rotte.
