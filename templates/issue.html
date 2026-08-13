@@ -88,6 +88,11 @@
   {% endfor %}
 </section>
 
+<p class="esporta">
+  <a href="{{ url_for('export_page', issue_id=issue.issue_id) }}">Scarica il fascicolo stampabile</a>
+  <span>un file solo, da aprire e stampare anche senza rete</span>
+</p>
+
 <p class="verso-soluzioni">
   <a href="{{ url_for('solutions_page', issue_id=issue.issue_id) }}">Soluzioni ragionate</a>
   <span>da aprire dopo aver provato, non prima</span>

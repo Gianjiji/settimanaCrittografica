@@ -46,7 +46,7 @@ dedicati.
 **P3, solo dopo che P0 e P1 sono chiusi**
 
 - [x] Pagina di ripasso che estrae gli esercizi delle famiglie con piu' errori nel registro.
-- [ ] Esportazione del fascicolo in un file stampabile.
+- [x] Esportazione del fascicolo in un file stampabile.
 - [ ] Cronometro per scheda, con confronto rispetto al tempo dichiarato.
 
 ## Bloccato
@@ -577,3 +577,35 @@ Invariante 4 rispettato anche qui: nessuna risposta nel markup, nessun passaggio
 solo attributi dati strutturali. I test lo verificano risalendo dalle schede proposte ai
 puzzle veri.
 Gate: unittest 208 test OK, smoke OK (7 controlli, ora con `/ripasso`).
+
+### Iterazione 16, 2026-08-13
+Task: seconda voce P3, esportazione del fascicolo in un file stampabile.
+Fatto: rotta `/fascicolo/<id>/stampa`, `templates/export.html`, link nel fascicolo,
+`tests/test_export.py` con 22 test, rotta aggiunta allo smoke.
+Scelta obbligata dal vincolo sulle dipendenze: **niente PDF**, servirebbe una libreria. Il
+formato e' un **singolo file HTML con il CSS inline**, servito con `Content-Disposition:
+attachment`. Verificato salvandolo su disco fuori dall'app: 9,6 KB, **zero riferimenti
+esterni**, nessuno script, nove schede, undici righe di risposta (due schede hanno due campi),
+sette caselle per SEGRETO. Si apre e si stampa da una cartella qualsiasi, senza rete.
+Il foglio riporta enunciati, dati, righe vuote su cui scrivere, il `meta_label` di ogni scheda
+e il crittogramma finale con le caselle. **Non riporta gli aiuti**, coerentemente con la voce
+sulla stampa: su carta niente resta piegato, e il terzo aiuto e' quasi la soluzione.
+
+**Il mutation testing ha di nuovo trovato buchi nei miei test, ed erano seri.** Due sabotaggi
+passavano inosservati:
+1. `test_no_answer_is_in_the_file` cercava le risposte **solo dentro gli attributi quotati**.
+   Ma un export non ha form: una risposta stampata come **testo visibile** sulla riga da
+   compilare non veniva vista. Sabotaggio "stampa la risposta sulla riga": verde. Ora il test
+   segmenta il documento **scheda per scheda**, guarda il testo visibile, e considera lecito
+   solo un numero gia' stampato in quella scheda. Il sabotaggio produce 11 fallimenti.
+2. `test_the_weekly_word_is_not_in_the_file` guardava solo il **tag di apertura** delle
+   caselle, non il contenuto. Mettere la parola dentro le caselle passava. Ora ci sono tre
+   test: le caselle devono arrivare vuote, il blocco finale deve mostrare il crittogramma e
+   non la parola, e **la chiave di Cesare non deve comparire**, che era un controllo che non
+   avevo per niente.
+Falso positivo incontrato e risolto correttamente: sulla scheda 2 il "3" segnalato era il
+**tempo stimato** (`3 min`), non la risposta. Il pubblico di una scheda comprende anche numero,
+minuti, etichette dei campi e `meta_label`. Stessa famiglia di errore di `data-number`
+nell'iterazione 2: sui numeri piccoli la ricerca per token trova rumore, serve sapere cosa e'
+gia' pubblico.
+Gate: unittest 230 test OK, smoke OK (8 controlli).

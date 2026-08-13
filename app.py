@@ -62,6 +62,22 @@ def solutions_page(issue_id):
                            current=current_issue_id())
 
 
+@app.route("/fascicolo/<issue_id>/stampa")
+def export_page(issue_id):
+    """The fascicle as one self-contained file, for printing or keeping.
+
+    A PDF would need a library, and the dependency rule forbids one, so the styles are
+    inlined instead: the file prints from anywhere with nothing left to fetch.
+    """
+    issue = _issue_or_404(issue_id)
+    document = render_template("export.html", issue=issue, sections=_sections(issue))
+    response = app.make_response(document)
+    response.headers["Content-Type"] = "text/html; charset=utf-8"
+    response.headers["Content-Disposition"] = (
+        'attachment; filename="fascicolo-%s.html"' % issue.issue_id)
+    return response
+
+
 @app.route("/archivio")
 def archive_page():
     issues = [build_issue(i) for i in recent_issue_ids(12)]

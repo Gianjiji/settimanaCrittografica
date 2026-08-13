@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Fascicolo {{ issue.issue_id }}</title>
+<style>
+/* Inlined on purpose: the file has to print from a folder, with no server behind it. */
+* { box-sizing: border-box; }
+body { margin: 0; padding: 1.5rem 1.2rem 3rem; font-size: 12pt; line-height: 1.5;
+       font-family: Georgia, "Times New Roman", serif; color: #16255a; background: #fff; }
+h1 { font-size: 1.5rem; margin: 0 0 0.2rem; letter-spacing: 0.04em; }
+h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.14em;
+     border-bottom: 1px solid #16255a; padding-bottom: 0.2rem; margin: 1.8rem 0 0.8rem; }
+h3 { font-size: 1.05rem; margin: 0.5rem 0 0.3rem; }
+.testata { border-bottom: 2px solid #16255a; padding-bottom: 0.6rem; margin-bottom: 0.6rem; }
+.numero { font-family: "Courier New", monospace; font-size: 0.75rem;
+          letter-spacing: 0.16em; text-transform: uppercase; }
+.istruzioni { font-size: 0.92rem; margin: 0.6rem 0 0; }
+.nota { font-size: 0.82rem; font-style: italic; margin: 0 0 0.8rem; }
+.scheda { border: 1px solid #16255a; padding: 0.7rem 0.9rem 0.9rem; margin-bottom: 1rem;
+          page-break-inside: avoid; }
+.scheda-testata { font-family: "Courier New", monospace; font-size: 0.7rem;
+                  letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.3rem; }
+.scheda-numero { border: 1px solid #16255a; padding: 0.05rem 0.35rem; margin-right: 0.5rem; }
+.tempo { float: right; }
+.consegna { margin: 0.3rem 0 0.6rem; }
+dl.dati { margin: 0 0 0.7rem; }
+dl.dati > div { display: flex; gap: 0.6rem; margin-bottom: 0.15rem; }
+dl.dati dt { font-family: "Courier New", monospace; font-size: 0.8rem; min-width: 8rem; }
+dl.dati dd { font-family: "Courier New", monospace; font-size: 0.85rem; margin: 0; }
+.risposta-riga { display: flex; gap: 0.6rem; align-items: flex-end; margin-top: 0.5rem; }
+.risposta-riga span { font-size: 0.82rem; }
+.riga-vuota { flex: 1; border-bottom: 1px solid #16255a; height: 1.1rem; }
+.finale { border: 2px solid #16255a; padding: 0.9rem; margin-top: 1.6rem;
+          page-break-inside: avoid; }
+.caselle { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.8rem 0 0; }
+.casella { width: 1.7rem; height: 2.1rem; border: 1px solid #16255a; }
+.piede { margin-top: 2rem; font-size: 0.75rem; font-family: "Courier New", monospace;
+         letter-spacing: 0.08em; }
+@media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+
+<div class="testata">
+  <p class="numero">Fascicolo {{ issue.issue_id }}</p>
+  <h1>Nove schede e una parola</h1>
+  <p class="numero">{{ issue.date_range }}</p>
+  <p class="istruzioni">Risolvi le nove schede. Ogni scheda produce un numero: la loro somma,
+  ridotta modulo 26, e' la chiave di Cesare che scopre la parola finale. Se la parola non ha
+  senso, da qualche parte c'e' un conto sbagliato.</p>
+</div>
+
+{% for section in sections %}
+<h2>{{ section.name }}</h2>
+<p class="nota">{{ section.blurb }}</p>
+
+{% for puzzle in section.puzzles %}
+<div class="scheda">
+  <p class="scheda-testata">
+    <span class="scheda-numero">{{ "%02d"|format(puzzle.number) }}</span>{{ puzzle.family }}
+    <span class="tempo">{{ puzzle.minutes }} min</span>
+  </p>
+  <h3>{{ puzzle.title }}</h3>
+  <p class="consegna">{{ puzzle.statement }}</p>
+
+  <dl class="dati">
+    {% for label, value in puzzle.given %}
+    <div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>
+    {% endfor %}
+  </dl>
+
+  {% for field in puzzle.fields %}
+  <p class="risposta-riga"><span>{{ field.label }}</span><span class="riga-vuota"></span></p>
+  {% endfor %}
+  <p class="nota">Porta alla parola: {{ puzzle.meta_label }}.</p>
+</div>
+{% endfor %}
+{% endfor %}
+
+<div class="finale">
+  <h3>La parola della settimana</h3>
+  <p class="consegna">Somma i nove numeri indicati dalle schede, riduci modulo 26 e usa il
+  risultato come chiave di Cesare per decifrare:</p>
+  <p class="numero">{{ issue.meta.ciphertext }}</p>
+  <div class="caselle">
+    {% for _ in range(issue.meta.word|length) %}<span class="casella"></span>{% endfor %}
+  </div>
+</div>
+
+<p class="piede">Fascicolo {{ issue.issue_id }}. Le soluzioni restano online.</p>
+
+</body>
+</html>
