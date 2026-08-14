@@ -8,11 +8,15 @@ from html.parser import HTMLParser
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import app as app_module
 import storage
 from app import app
 from crypto_puzzles.fascicle import build_issue, current_issue_id
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# The stats page only prints what this browser logged, so the two must agree.
+PLAYER = "a" * 32
 
 HOSTILE = [
     "<script>alert(1)</script>",
@@ -69,6 +73,7 @@ class EscapingTestCase(unittest.TestCase):
         self.addCleanup(self.restore_db_path)
         storage.DB_PATH = os.path.join(self.temp_dir.name, "attempts.db")
         self.client = app.test_client()
+        self.client.set_cookie(app_module.PLAYER_COOKIE, PLAYER)
         self.issue_id = current_issue_id()
         self.issue = build_issue(self.issue_id)
 
@@ -91,7 +96,7 @@ class StoredValueEscapingTest(EscapingTestCase):
     def stats_page_for_kind(self, kind, tag):
         """The stats page with a single logged attempt of that kind, on a fresh database."""
         storage.DB_PATH = os.path.join(self.temp_dir.name, "kind-%s.db" % tag)
-        storage.log_attempt(self.issue_id, 1, kind, 1, False)
+        storage.log_attempt(PLAYER, self.issue_id, 1, kind, 1, False)
         return self.client.get("/statistiche").get_data(as_text=True)
 
     def test_hostile_kind_builds_no_markup_on_the_stats_page(self):
@@ -109,12 +114,12 @@ class StoredValueEscapingTest(EscapingTestCase):
                 self.assertIn(payload, visible_text(html))
 
     def test_hostile_kind_is_still_shown_as_text(self):
-        storage.log_attempt(self.issue_id, 1, "<b>ciao</b>", 1, False)
+        storage.log_attempt(PLAYER, self.issue_id, 1, "<b>ciao</b>", 1, False)
         html = self.client.get("/statistiche").get_data(as_text=True)
         self.assertIn("&lt;b&gt;ciao&lt;/b&gt;", html)
 
     def test_stored_braces_are_not_evaluated_as_a_template(self):
-        storage.log_attempt(self.issue_id, 1, TEMPLATE_INJECTION, 1, False)
+        storage.log_attempt(PLAYER, self.issue_id, 1, TEMPLATE_INJECTION, 1, False)
         html = self.client.get("/statistiche").get_data(as_text=True)
         self.assertNotIn("49", html)
         self.assertIn("7*7", html)

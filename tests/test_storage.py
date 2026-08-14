@@ -10,6 +10,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import storage
 
+# Two browsers, told apart only by the id they hand back with every request.
+PLAYER = "a" * 32
+OTHER = "b" * 32
+
 
 class StorageTestCase(unittest.TestCase):
     """Every test gets its own database, so nothing touches the player's own log."""
@@ -24,8 +28,9 @@ class StorageTestCase(unittest.TestCase):
     def restore_db_path(self):
         storage.DB_PATH = self.real_db_path
 
-    def log(self, issue_id="2026-W33", number=1, kind="catena_rsa", difficulty=2, correct=True):
-        storage.log_attempt(issue_id, number, kind, difficulty, correct)
+    def log(self, issue_id="2026-W33", number=1, kind="catena_rsa", difficulty=2, correct=True,
+            player=PLAYER):
+        storage.log_attempt(player, issue_id, number, kind, difficulty, correct)
 
     def row_count(self):
         conn = sqlite3.connect(storage.DB_PATH)
@@ -43,7 +48,7 @@ class DatabaseCreationTest(StorageTestCase):
 
     def test_database_is_created_on_first_read(self):
         self.assertFalse(os.path.exists(storage.DB_PATH))
-        self.assertEqual(storage.stats_by_kind(), [])
+        self.assertEqual(storage.stats_by_kind(PLAYER), [])
         self.assertTrue(os.path.exists(storage.DB_PATH))
 
     def test_missing_parent_directories_are_created(self):
@@ -67,14 +72,14 @@ class DatabaseCreationTest(StorageTestCase):
             columns = {row[1] for row in conn.execute("PRAGMA table_info(attempts)")}
         finally:
             conn.close()
-        self.assertEqual(columns, {"id", "created_at", "issue_id", "puzzle_number",
+        self.assertEqual(columns, {"id", "created_at", "player_id", "issue_id", "puzzle_number",
                                    "kind", "difficulty", "correct"})
 
     def test_reconnecting_keeps_existing_rows(self):
         self.log()
         self.log()
         self.assertEqual(self.row_count(), 2)
-        self.assertEqual(len(storage.stats_by_kind()), 1)
+        self.assertEqual(len(storage.stats_by_kind(PLAYER)), 1)
         self.assertEqual(self.row_count(), 2)
 
 
@@ -112,45 +117,45 @@ class LogAttemptTest(StorageTestCase):
 
 class SolvedNumbersTest(StorageTestCase):
     def test_empty_database_has_nothing_solved(self):
-        self.assertEqual(storage.solved_numbers("2026-W33"), set())
+        self.assertEqual(storage.solved_numbers(PLAYER, "2026-W33"), set())
 
     def test_only_correct_attempts_count_as_solved(self):
         self.log(number=1, correct=True)
         self.log(number=2, correct=False)
-        self.assertEqual(storage.solved_numbers("2026-W33"), {1})
+        self.assertEqual(storage.solved_numbers(PLAYER, "2026-W33"), {1})
 
     def test_a_wrong_attempt_does_not_unsolve_a_card(self):
         self.log(number=1, correct=True)
         self.log(number=1, correct=False)
-        self.assertEqual(storage.solved_numbers("2026-W33"), {1})
+        self.assertEqual(storage.solved_numbers(PLAYER, "2026-W33"), {1})
 
     def test_repeated_solutions_are_reported_once(self):
         for _ in range(4):
             self.log(number=3, correct=True)
-        self.assertEqual(storage.solved_numbers("2026-W33"), {3})
+        self.assertEqual(storage.solved_numbers(PLAYER, "2026-W33"), {3})
 
     def test_solutions_are_scoped_to_their_issue(self):
         self.log(issue_id="2026-W33", number=1, correct=True)
         self.log(issue_id="2026-W32", number=5, correct=True)
-        self.assertEqual(storage.solved_numbers("2026-W33"), {1})
-        self.assertEqual(storage.solved_numbers("2026-W32"), {5})
-        self.assertEqual(storage.solved_numbers("2026-W31"), set())
+        self.assertEqual(storage.solved_numbers(PLAYER, "2026-W33"), {1})
+        self.assertEqual(storage.solved_numbers(PLAYER, "2026-W32"), {5})
+        self.assertEqual(storage.solved_numbers(PLAYER, "2026-W31"), set())
 
     def test_the_weekly_word_is_recorded_as_card_zero(self):
         self.log(number=0, kind="parola_settimana", difficulty=3, correct=True)
-        self.assertEqual(storage.solved_numbers("2026-W33"), {0})
+        self.assertEqual(storage.solved_numbers(PLAYER, "2026-W33"), {0})
 
 
 class StatsByKindTest(StorageTestCase):
     def test_empty_database_returns_no_rows(self):
-        self.assertEqual(storage.stats_by_kind(), [])
+        self.assertEqual(storage.stats_by_kind(PLAYER), [])
 
     def test_attempts_are_grouped_by_kind_and_difficulty(self):
         self.log(kind="catena_rsa", difficulty=1)
         self.log(kind="catena_rsa", difficulty=1)
         self.log(kind="catena_rsa", difficulty=2)
         self.log(kind="coincidenzario", difficulty=1)
-        rows = storage.stats_by_kind()
+        rows = storage.stats_by_kind(PLAYER)
         self.assertEqual([(r["kind"], r["difficulty"], r["total"]) for r in rows],
                          [("catena_rsa", 1, 2), ("catena_rsa", 2, 1), ("coincidenzario", 1, 1)])
 
@@ -159,23 +164,23 @@ class StatsByKindTest(StorageTestCase):
             self.log(correct=True)
         for _ in range(2):
             self.log(correct=False)
-        row = storage.stats_by_kind()[0]
+        row = storage.stats_by_kind(PLAYER)[0]
         self.assertEqual(row["total"], 5)
         self.assertEqual(row["ok"], 3)
 
     def test_error_rate_of_a_perfect_record_is_zero(self):
         self.log(correct=True)
-        self.assertEqual(storage.stats_by_kind()[0]["error_rate"], 0)
+        self.assertEqual(storage.stats_by_kind(PLAYER)[0]["error_rate"], 0)
 
     def test_error_rate_of_a_hopeless_record_is_one_hundred(self):
         self.log(correct=False)
-        self.assertEqual(storage.stats_by_kind()[0]["error_rate"], 100)
+        self.assertEqual(storage.stats_by_kind(PLAYER)[0]["error_rate"], 100)
 
     def test_error_rate_is_a_percentage_of_the_total(self):
         for _ in range(3):
             self.log(correct=True)
         self.log(correct=False)
-        self.assertEqual(storage.stats_by_kind()[0]["error_rate"], 25)
+        self.assertEqual(storage.stats_by_kind(PLAYER)[0]["error_rate"], 25)
 
     def test_halves_always_round_up(self):
         """round() halves to even, so 12.5 became 12 while 37.5 became 38."""
@@ -186,7 +191,7 @@ class StatsByKindTest(StorageTestCase):
                     self.log(correct=True)
                 for _ in range(errors):
                     self.log(correct=False)
-                self.assertEqual(storage.stats_by_kind()[0]["error_rate"], expected,
+                self.assertEqual(storage.stats_by_kind(PLAYER)[0]["error_rate"], expected,
                                  "%d errors out of %d" % (errors, total))
 
     def test_error_rate_stays_within_bounds(self):
@@ -197,15 +202,91 @@ class StatsByKindTest(StorageTestCase):
                     self.log(correct=True)
                 for _ in range(errors):
                     self.log(correct=False)
-                rate = storage.stats_by_kind()[0]["error_rate"]
+                rate = storage.stats_by_kind(PLAYER)[0]["error_rate"]
                 self.assertGreaterEqual(rate, 0)
                 self.assertLessEqual(rate, 100)
 
     def test_kinds_are_kept_separate(self):
         self.log(kind="catena_rsa", correct=False)
         self.log(kind="coincidenzario", correct=True)
-        rates = {r["kind"]: r["error_rate"] for r in storage.stats_by_kind()}
+        rates = {r["kind"]: r["error_rate"] for r in storage.stats_by_kind(PLAYER)}
         self.assertEqual(rates, {"catena_rsa": 100, "coincidenzario": 0})
+
+
+class PlayerIsolationTest(StorageTestCase):
+    """One shared link, one shared file, but never a shared log."""
+
+    def test_a_card_solved_by_one_player_is_not_solved_for_another(self):
+        self.log(number=1, correct=True, player=PLAYER)
+        self.assertEqual(storage.solved_numbers(OTHER, "2026-W33"), set())
+
+    def test_each_player_sees_only_their_own_solved_cards(self):
+        self.log(number=1, correct=True, player=PLAYER)
+        self.log(number=2, correct=True, player=OTHER)
+        self.assertEqual(storage.solved_numbers(PLAYER, "2026-W33"), {1})
+        self.assertEqual(storage.solved_numbers(OTHER, "2026-W33"), {2})
+
+    def test_statistics_count_only_the_asking_player(self):
+        self.log(kind="catena_rsa", correct=False, player=PLAYER)
+        for _ in range(3):
+            self.log(kind="catena_rsa", correct=True, player=OTHER)
+        self.assertEqual([(r["total"], r["error_rate"]) for r in storage.stats_by_kind(PLAYER)],
+                         [(1, 100)])
+        self.assertEqual([(r["total"], r["error_rate"]) for r in storage.stats_by_kind(OTHER)],
+                         [(3, 0)])
+
+    def test_a_player_who_never_answered_has_no_statistics(self):
+        self.log(player=PLAYER)
+        self.assertEqual(storage.stats_by_kind(OTHER), [])
+
+    def test_the_player_is_stored_with_the_attempt(self):
+        self.log(player=OTHER)
+        conn = sqlite3.connect(storage.DB_PATH)
+        try:
+            self.assertEqual(conn.execute("SELECT player_id FROM attempts").fetchone()[0], OTHER)
+        finally:
+            conn.close()
+
+
+class OlderDatabaseTest(StorageTestCase):
+    """A log written before player ids must still open, and must not leak."""
+
+    OLD_SCHEMA = """
+    CREATE TABLE attempts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        issue_id TEXT NOT NULL,
+        puzzle_number INTEGER NOT NULL,
+        kind TEXT NOT NULL,
+        difficulty INTEGER NOT NULL,
+        correct INTEGER NOT NULL
+    );
+    """
+
+    def setUp(self):
+        super().setUp()
+        conn = sqlite3.connect(storage.DB_PATH)
+        try:
+            with conn:
+                conn.execute(self.OLD_SCHEMA)
+                conn.execute("INSERT INTO attempts (issue_id, puzzle_number, kind, difficulty,"
+                             " correct) VALUES ('2026-W33', 1, 'catena_rsa', 2, 1)")
+        finally:
+            conn.close()
+
+    def test_the_column_is_added_without_dropping_the_old_rows(self):
+        self.assertEqual(storage.stats_by_kind(PLAYER), [])
+        self.assertEqual(self.row_count(), 1)
+
+    def test_the_old_rows_are_shown_to_nobody(self):
+        """They were logged when every reader shared one history, so they name no one."""
+        self.assertEqual(storage.solved_numbers(PLAYER, "2026-W33"), set())
+        self.assertEqual(storage.solved_numbers("", "2026-W33"), {1})
+
+    def test_new_attempts_land_beside_the_old_ones(self):
+        self.log(number=4, correct=True)
+        self.assertEqual(storage.solved_numbers(PLAYER, "2026-W33"), {4})
+        self.assertEqual(self.row_count(), 2)
 
 
 if __name__ == "__main__":

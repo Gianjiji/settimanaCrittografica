@@ -1,4 +1,6 @@
-var CACHE = "settimana-crittografica-v1";
+// v2 drops every page cached while one log was shared: those copies carry someone
+// else's ticks, and the activate handler below deletes any cache but the current one.
+var CACHE = "settimana-crittografica-v2";
 var CORE = ["/", "/static/style.css", "/static/app.js"];
 
 self.addEventListener("install", function (event) {

@@ -1,8 +1,10 @@
 """La Settimana Crittografica: a weekly fascicle of mental cryptography puzzles."""
 
 import re
+import secrets
 
-from flask import Flask, abort, jsonify, redirect, render_template, request, send_from_directory, url_for
+from flask import (Flask, abort, g, jsonify, redirect, render_template, request,
+                  send_from_directory, url_for)
 
 import storage
 from crypto_puzzles.core import check_puzzle
@@ -11,6 +13,45 @@ from crypto_puzzles.fascicle import (GENERATORS, SECTIONS, build_issue, current_
 from crypto_puzzles.tables import INVERSE_TABLES
 
 app = Flask(__name__)
+
+PLAYER_COOKIE = "giocatore"
+PLAYER_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 2  # two years, longer than any run of issues
+PLAYER_ID_PATTERN = re.compile(r"\A[0-9a-f]{32}\Z")
+
+
+@app.before_request
+def assign_player():
+    """Tell one browser from another, with no account to open and no name to give.
+
+    The fascicle is shared as a link, so several readers arrive at the same address and
+    each expects to see their own progress. The id below names nobody: it is a random
+    number the browser keeps in a cookie and hands back on every request, which is all
+    it takes to keep two logs apart. Clearing the cookie starts an empty history, which
+    is the price of asking for nothing.
+
+    A cookie that does not have the shape of a minted id is thrown away rather than
+    filed under, so a hand written value cannot become a log of its own; and 128 random
+    bits is far too much room to stumble into somebody else's by trying.
+    """
+    cookie = request.cookies.get(PLAYER_COOKIE, "")
+    known = bool(PLAYER_ID_PATTERN.match(cookie))
+    g.player_id = cookie if known else secrets.token_hex(16)
+    g.player_is_new = not known
+
+
+@app.after_request
+def remember_player(response):
+    if g.get("player_is_new"):
+        response.set_cookie(PLAYER_COOKIE, g.player_id, max_age=PLAYER_COOKIE_MAX_AGE,
+                            path="/", httponly=True, samesite="Lax")
+    if response.mimetype == "text/html":
+        # One address now answers differently per browser. Without this a cache in the
+        # middle, or the reader's own, could hand one player the page built for another.
+        # Added to the set rather than assigned: a tunnel or proxy in front may already
+        # have made the page vary by Accept-Encoding, and overwriting that would let a
+        # cache answer a client with a body it cannot read.
+        response.vary.add("Cookie")
+    return response
 
 
 def _issue_or_404(issue_id):
@@ -51,7 +92,7 @@ def home():
 def issue_page(issue_id):
     issue = _issue_or_404(issue_id)
     return render_template("issue.html", issue=issue, sections=_sections(issue),
-                           solved=storage.solved_numbers(issue_id),
+                           solved=storage.solved_numbers(g.player_id, issue_id),
                            inverse_tables=INVERSE_TABLES, current=current_issue_id())
 
 
@@ -90,14 +131,14 @@ REVIEW_CARDS = 6
 REVIEW_HISTORY = 12
 
 
-def weak_families():
-    """The (kind, difficulty) pairs most often got wrong, worst first.
+def weak_families(player_id):
+    """The (kind, difficulty) pairs this reader most often gets wrong, worst first.
 
     The pair, not just the kind: RSA at difficulty 3 can be a weakness while the same
     family at difficulty 1 is not. A pair also needs a few attempts before its error
     rate means anything, since one unlucky answer is not a weakness.
     """
-    rows = [r for r in storage.stats_by_kind()
+    rows = [r for r in storage.stats_by_kind(player_id)
             if r["total"] >= MIN_ATTEMPTS_TO_JUDGE and r["error_rate"] > 0]
     rows.sort(key=lambda r: (-r["error_rate"], -r["total"], r["kind"], r["difficulty"]))
     return [(r["kind"], r["difficulty"]) for r in rows]
@@ -122,13 +163,14 @@ def review_cards(families):
 
 @app.route("/ripasso")
 def review_page():
-    return render_template("review.html", cards=review_cards(weak_families()),
+    return render_template("review.html", cards=review_cards(weak_families(g.player_id)),
                            current=current_issue_id())
 
 
 @app.route("/statistiche")
 def stats_page():
-    return render_template("stats.html", rows=storage.stats_by_kind(), current=current_issue_id())
+    return render_template("stats.html", rows=storage.stats_by_kind(g.player_id),
+                           current=current_issue_id())
 
 
 @app.post("/api/verifica")
@@ -148,7 +190,8 @@ def verify():
     if not isinstance(answers, list):
         answers = []
     correct, per_field = check_puzzle(puzzle, answers)
-    storage.log_attempt(issue.issue_id, puzzle.number, puzzle.kind, puzzle.difficulty, correct)
+    storage.log_attempt(g.player_id, issue.issue_id, puzzle.number, puzzle.kind,
+                        puzzle.difficulty, correct)
     return jsonify({"correct": correct, "fields": per_field})
 
 
@@ -160,7 +203,7 @@ def verify_word():
         return jsonify({"error": "fascicolo inesistente"}), 404
     guess = re.sub(r"[^a-z]", "", str(payload.get("answer", "")).lower())
     correct = guess == issue.meta.word.lower()
-    storage.log_attempt(issue.issue_id, 0, "parola_settimana", 3, correct)
+    storage.log_attempt(g.player_id, issue.issue_id, 0, "parola_settimana", 3, correct)
     return jsonify({"correct": correct})
 
 

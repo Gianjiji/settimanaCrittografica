@@ -19,6 +19,11 @@ from crypto_puzzles.fascicle import build_issue, current_issue_id, recent_issue_
 
 MIN_ATTEMPTS = 3
 
+# The browser these tests pretend to be. The review page is built from one reader's
+# mistakes, so the log and the request have to agree on whose they are.
+PLAYER = "a" * 32
+OTHER = "b" * 32
+
 
 class ReviewTestCase(unittest.TestCase):
     def setUp(self):
@@ -27,21 +32,26 @@ class ReviewTestCase(unittest.TestCase):
         self.real_db_path = storage.DB_PATH
         self.addCleanup(self.restore_db_path)
         storage.DB_PATH = os.path.join(self.temp_dir.name, "attempts.db")
-        self.client = app.test_client()
+        self.client = self.browser(PLAYER)
         self.issue_id = current_issue_id()
         self.issue = build_issue(self.issue_id)
+
+    def browser(self, player):
+        client = app.test_client()
+        client.set_cookie(app_module.PLAYER_COOKIE, player)
+        return client
 
     def restore_db_path(self):
         storage.DB_PATH = self.real_db_path
 
-    def page(self):
-        response = self.client.get("/ripasso")
+    def page(self, client=None):
+        response = (client or self.client).get("/ripasso")
         self.assertEqual(response.status_code, 200)
         return response.get_data(as_text=True)
 
-    def log(self, kind, difficulty=2, correct=False, times=1):
+    def log(self, kind, difficulty=2, correct=False, times=1, player=PLAYER):
         for _ in range(times):
-            storage.log_attempt(self.issue_id, 1, kind, difficulty, correct)
+            storage.log_attempt(player, self.issue_id, 1, kind, difficulty, correct)
 
     def kinds_in(self, html):
         return set(re.findall(r'data-kind="([^"]*)"', html))
@@ -92,7 +102,7 @@ class SelectionTest(ReviewTestCase):
     def test_only_known_families_are_offered(self):
         """A retired generator leaves rows in the log that can no longer be built."""
         self.log("famiglia_che_non_esiste", correct=False, times=5)
-        self.assertEqual(app_module.weak_families(), [("famiglia_che_non_esiste", 2)])
+        self.assertEqual(app_module.weak_families(PLAYER), [("famiglia_che_non_esiste", 2)])
         self.assertEqual(self.kinds_in(self.page()), set())
 
     def test_the_offered_card_matches_the_difficulty_that_is_weak(self):
@@ -117,6 +127,25 @@ class SelectionTest(ReviewTestCase):
                 self.log(kind, difficulty=difficulty, correct=False, times=5)
         html = self.page()
         self.assertEqual(len(re.findall(r'class="scheda"', html)), app_module.REVIEW_CARDS)
+
+
+class OneReaderPerLogTest(ReviewTestCase):
+    """The link is shared; the weaknesses it reports are not."""
+
+    def test_another_browser_is_not_offered_your_weak_families(self):
+        self.log("catena_rsa", correct=False, times=5)
+        self.assertIn("catena_rsa", self.kinds_in(self.page()))
+        self.assertEqual(self.kinds_in(self.page(self.browser(OTHER))), set())
+
+    def test_a_browser_with_no_cookie_starts_from_nothing(self):
+        self.log("catena_rsa", correct=False, times=5)
+        self.assertEqual(self.kinds_in(self.page(app.test_client())), set())
+
+    def test_two_readers_are_ranked_on_their_own_mistakes(self):
+        self.log("catena_rsa", correct=False, times=5, player=PLAYER)
+        self.log("coincidenzario", correct=False, times=5, player=OTHER)
+        self.assertEqual(self.kinds_in(self.page()), {"catena_rsa"})
+        self.assertEqual(self.kinds_in(self.page(self.browser(OTHER))), {"coincidenzario"})
 
 
 class AnswersStayHiddenTest(ReviewTestCase):

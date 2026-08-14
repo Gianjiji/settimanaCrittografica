@@ -45,7 +45,44 @@ crypto_puzzles/
 templates/                 pagine Jinja
 static/                    stile, script, service worker, manifest
 tests/                     property test sugli invarianti
+  test_integration.py      il server vero su una porta vera, guidato via HTTP
 ```
+
+Tutto in un colpo:
+
+```
+python -m unittest discover -s tests -v
+```
+
+`test_integration.py` è l'unico che esce dal processo: avvia `app` in un sottoprocesso su
+una porta assegnata dal kernel, lo interroga con `urllib` e un `CookieJar`, e lo spegne e
+riaccende sotto lo stesso barattolo di cookie. Serve a coprire quello che il test client
+di Flask non tocca: il `Set-Cookie` giudicato da un client vero, il database che
+sopravvive al processo, e la migrazione di un file vecchio fatta da un server all'avvio.
+Costa qualche secondo in più degli altri.
+
+## Chi vede cosa
+
+Il link si passa agli amici, quindi allo stesso indirizzo arrivano più lettori. Non c'è
+login: al primo contatto il server consegna al browser un identificativo casuale in un
+cookie (`giocatore`, 32 cifre esadecimali, durata due anni) e archivia ogni tentativo
+sotto quell'id. Schede risolte, contatore, registro errori e pagina di ripasso vengono
+costruiti solo dalle righe di chi sta chiedendo la pagina.
+
+Conseguenze da conoscere:
+
+- Un cookie cancellato è una cronologia che riparte da zero: non c'è modo di recuperarla,
+  ed è il prezzo di non chiedere nulla a chi entra.
+- Lo stesso lettore su due dispositivi conta come due lettori.
+- Le righe scritte prima di questo meccanismo restano nel file con id vuoto e non vengono
+  mostrate a nessuno: allora un solo registro teneva insieme tutti.
+- Le pagine HTML rispondono con `Vary: Cookie`, perché lo stesso indirizzo ora restituisce
+  contenuti diversi e nessuna cache deve confonderli. Non disturba il service worker:
+  `Cookie` è un header proibito, quindi la richiesta che il worker mette in cache non lo
+  porta con sé, il confronto imposto da `Vary` è fra due assenze e la copia offline viene
+  ritrovata lo stesso. Verificato in Chrome, non solo dedotto.
+- Il cookie è `HttpOnly` e `SameSite=Lax`. Dietro HTTPS conviene aggiungere `secure=True`
+  in `remember_player` (`app.py`); su HTTP semplice il cookie non partirebbe.
 
 ## Le regole che tengono in piedi il progetto
 

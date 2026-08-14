@@ -9,12 +9,16 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import app as app_module
 import storage
 from app import app
 from crypto_puzzles.fascicle import build_issue, current_issue_id
 
 THREADS = 12
 ROUNDS = 12
+
+# One browser, so a parallel read sees the rows the parallel writes are adding.
+PLAYER = "a" * 32
 
 
 class ConcurrencyTestCase(unittest.TestCase):
@@ -65,6 +69,7 @@ class ConcurrentApiTest(ConcurrencyTestCase):
 
         def hammer(index):
             client = app.test_client()
+            client.set_cookie(app_module.PLAYER_COOKIE, PLAYER)
             for step in range(ROUNDS):
                 number = self.numbers[(index + step) % len(self.numbers)]
                 response = client.post("/api/verifica",
@@ -84,6 +89,7 @@ class ConcurrentApiTest(ConcurrencyTestCase):
 
         def hammer(index):
             client = app.test_client()
+            client.set_cookie(app_module.PLAYER_COOKIE, PLAYER)
             for _ in range(ROUNDS):
                 response = client.post("/api/parola",
                                        json={"issue": self.issue_id, "answer": "qualcosa"})
@@ -100,6 +106,7 @@ class ConcurrentApiTest(ConcurrencyTestCase):
 
         def mixed(index):
             client = app.test_client()
+            client.set_cookie(app_module.PLAYER_COOKIE, PLAYER)
             for step in range(ROUNDS):
                 number = self.numbers[(index + step) % len(self.numbers)]
                 responses = [
@@ -117,7 +124,7 @@ class ConcurrentApiTest(ConcurrencyTestCase):
     def test_no_attempt_is_lost(self):
         def writer(index):
             for step in range(ROUNDS):
-                storage.log_attempt(self.issue_id, self.numbers[step % len(self.numbers)],
+                storage.log_attempt(PLAYER, self.issue_id, self.numbers[step % len(self.numbers)],
                                     "catena_rsa", 2, step % 2 == 0)
 
         self.assertEqual(self.run_in_parallel(writer), [])
@@ -127,20 +134,20 @@ class ConcurrentApiTest(ConcurrencyTestCase):
 class ConnectionHandlingTest(ConcurrencyTestCase):
     def test_an_open_reader_does_not_block_a_writer(self):
         """The rollback journal makes a reader block writers; WAL does not."""
-        storage.log_attempt(self.issue_id, 1, "catena_rsa", 2, True)
+        storage.log_attempt(PLAYER, self.issue_id, 1, "catena_rsa", 2, True)
         reader = sqlite3.connect(storage.DB_PATH, timeout=1.0)
         reader.isolation_level = None
         try:
             reader.execute("BEGIN")
             reader.execute("SELECT * FROM attempts").fetchall()
-            storage.log_attempt(self.issue_id, 2, "catena_rsa", 2, False)
+            storage.log_attempt(PLAYER, self.issue_id, 2, "catena_rsa", 2, False)
         finally:
             reader.rollback()
             reader.close()
         self.assertEqual(self.row_count(), 2)
 
     def test_the_database_uses_a_journal_that_allows_concurrent_readers(self):
-        storage.log_attempt(self.issue_id, 1, "catena_rsa", 2, True)
+        storage.log_attempt(PLAYER, self.issue_id, 1, "catena_rsa", 2, True)
         conn = sqlite3.connect(storage.DB_PATH)
         try:
             mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
@@ -155,15 +162,15 @@ class ConnectionHandlingTest(ConcurrencyTestCase):
         storage.SCHEMA = "CREATE TABLE IF NOT EXISTS altra (id INTEGER PRIMARY KEY)"
         try:
             for _ in range(20):
-                self.assertRaises(sqlite3.OperationalError, storage.stats_by_kind)
-                self.assertRaises(sqlite3.OperationalError, storage.solved_numbers, self.issue_id)
+                self.assertRaises(sqlite3.OperationalError, storage.stats_by_kind, PLAYER)
+                self.assertRaises(sqlite3.OperationalError, storage.solved_numbers, PLAYER, self.issue_id)
         finally:
             storage.SCHEMA = original
 
         # No lock was left behind: the database still works.
-        storage.log_attempt(self.issue_id, 1, "catena_rsa", 2, True)
+        storage.log_attempt(PLAYER, self.issue_id, 1, "catena_rsa", 2, True)
         self.assertEqual(self.row_count(), 1)
-        self.assertEqual(storage.solved_numbers(self.issue_id), {1})
+        self.assertEqual(storage.solved_numbers(PLAYER, self.issue_id), {1})
 
     def test_connect_closes_the_connection_if_setup_fails(self):
         """A half prepared connection must not escape, or it keeps its locks.
