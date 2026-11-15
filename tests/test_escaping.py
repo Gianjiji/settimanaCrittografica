@@ -13,6 +13,10 @@ import storage
 from app import app
 from crypto_puzzles.fascicle import build_issue, current_issue_id
 
+# These tests post far faster than a reader would; the request budget has its own
+# tests in test_rate_limit.py.
+app.config["RATE_LIMIT_ENABLED"] = False
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # The stats page only prints what this browser logged, so the two must agree.

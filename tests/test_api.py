@@ -11,6 +11,10 @@ import storage
 from app import app
 from crypto_puzzles.fascicle import build_issue, current_issue_id
 
+# These tests post far faster than a reader would; the request budget has its own
+# tests in test_rate_limit.py.
+app.config["RATE_LIMIT_ENABLED"] = False
+
 _TEMP_DIR = None
 _REAL_DB_PATH = None
 
@@ -118,6 +122,30 @@ class MalformedNumberTest(ApiTestCase):
                                           {"issue": self.issue_id, "number": value, "answers": ["1"]})
                 self.assertNotServerError(response, "number %s" % label)
                 self.assertEqual(response.status_code, 400)
+
+    def test_numbers_that_are_not_whole_are_400(self):
+        """The JSON parser reads Infinity, NaN and 1e999 as numbers; int() does not."""
+        for label, literal in (("infinity", "Infinity"), ("minus infinity", "-Infinity"),
+                               ("nan", "NaN"), ("overflowing float", "1e999"),
+                               ("fraction", "1.5"), ("true", "true"), ("false", "false")):
+            with self.subTest(number=label):
+                body = '{"issue": "%s", "number": %s, "answers": ["1"]}' % (self.issue_id, literal)
+                response = self.post_raw("/api/verifica", body)
+                self.assertNotServerError(response, "number %s" % label)
+                self.assertEqual(response.status_code, 400)
+
+    def test_whole_float_number_is_accepted(self):
+        """1.0 is how some clients spell 1, and it names a card without ambiguity."""
+        response = self.post_json("/api/verifica",
+                                  {"issue": self.issue_id, "number": float(self.puzzle.number),
+                                   "answers": ["1"]})
+        self.assertEqual(response.status_code, 200)
+
+    def test_huge_integer_is_404_not_500(self):
+        response = self.post_raw(
+            "/api/verifica",
+            '{"issue": "%s", "number": %s, "answers": ["1"]}' % (self.issue_id, "9" * 400))
+        self.assertEqual(response.status_code, 404)
 
     def test_unknown_card_number_is_404(self):
         for value in (0, 999, -1):

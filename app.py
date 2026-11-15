@@ -1,18 +1,46 @@
 """La Settimana Crittografica: a weekly fascicle of mental cryptography puzzles."""
 
+import os
 import re
 import secrets
 
 from flask import (Flask, abort, g, jsonify, redirect, render_template, request,
                   send_from_directory, url_for)
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 import storage
 from crypto_puzzles.core import check_puzzle
-from crypto_puzzles.fascicle import (GENERATORS, SECTIONS, build_issue, current_issue_id,
-                                     recent_issue_ids)
+from crypto_puzzles.fascicle import SECTIONS, build_issue, current_issue_id, recent_issue_ids
 from crypto_puzzles.tables import INVERSE_TABLES
+from ratelimit import RateLimiter
 
 app = Flask(__name__)
+
+# How many proxies sit in front, when there are any (a tunnel is one). Without this the
+# only address the app ever sees is the proxy's own: every reader would share a single
+# request budget, and a page served over https would look like plain http. Left at zero
+# the forwarding headers are ignored, because a client reaching the app directly could
+# write whatever it wanted in them.
+PROXY_HOPS_VARIABLE = "SETTIMANA_PROXY_HOPS"
+
+
+def _proxy_hops(environ):
+    try:
+        return max(0, int(environ.get(PROXY_HOPS_VARIABLE, "0")))
+    except ValueError:
+        return 0
+
+
+_HOPS = _proxy_hops(os.environ)
+if _HOPS:
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=_HOPS, x_proto=_HOPS)
+
+# A reader sends one answer every few seconds at most; forty in a row and then one a
+# second is far more than a fascicle of nine cards asks for, and far less than a loop.
+RATE_LIMIT_BURST = 40
+RATE_LIMIT_PER_SECOND = 1.0
+app.config.setdefault("RATE_LIMIT_ENABLED", True)
+api_budget = RateLimiter(RATE_LIMIT_BURST, RATE_LIMIT_PER_SECOND)
 
 PLAYER_COOKIE = "giocatore"
 PLAYER_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 2  # two years, longer than any run of issues
@@ -42,8 +70,12 @@ def assign_player():
 @app.after_request
 def remember_player(response):
     if g.get("player_is_new"):
+        # Secure only when the request itself came over https: on plain http, which is
+        # how the fascicle is reached on a home network, a Secure cookie would never be
+        # sent back and every page view would start a new history.
         response.set_cookie(PLAYER_COOKIE, g.player_id, max_age=PLAYER_COOKIE_MAX_AGE,
-                            path="/", httponly=True, samesite="Lax")
+                            path="/", httponly=True, samesite="Lax",
+                            secure=request.is_secure)
     if response.mimetype == "text/html":
         # One address now answers differently per browser. Without this a cache in the
         # middle, or the reader's own, could hand one player the page built for another.
@@ -51,6 +83,25 @@ def remember_player(response):
         # have made the page vary by Accept-Encoding, and overwriting that would let a
         # cache answer a client with a body it cannot read.
         response.vary.add("Cookie")
+    return response
+
+
+@app.before_request
+def spend_request_budget():
+    """Refuse an address that posts faster than any reader could.
+
+    Only the POST routes write to the log, so only they are counted: reading pages
+    costs nothing that needs rationing. The refusal is a 429 with a Retry-After, which
+    the page reports as "not checked" rather than as a wrong answer.
+    """
+    if request.method != "POST" or not app.config["RATE_LIMIT_ENABLED"]:
+        return None
+    address = request.remote_addr or ""
+    if api_budget.allow(address):
+        return None
+    response = jsonify({"error": "troppe richieste, riprova fra poco"})
+    response.status_code = 429
+    response.headers["Retry-After"] = str(api_budget.retry_after(address))
     return response
 
 
@@ -73,6 +124,24 @@ def _issue_from(payload):
     if not isinstance(issue_id, str):
         return None
     return build_issue(issue_id)
+
+
+def _card_number(value):
+    """The card number as an int, or None when the client sent something else.
+
+    int() alone is too willing: it reads true as card 1, cuts 1.9 down to 1, and raises
+    OverflowError, not ValueError, for the Infinity and 1e999 that the JSON parser
+    accepts as numbers. A whole number, or a string that spells one, is all a card
+    number can be.
+    """
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, float) and not value.is_integer():
+        return None  # also inf and nan, which are no integers either
+    try:
+        return int(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
 
 
 def _sections(issue):
@@ -179,9 +248,8 @@ def verify():
     issue = _issue_from(payload)
     if issue is None:
         return jsonify({"error": "fascicolo inesistente"}), 404
-    try:
-        number = int(payload.get("number", 0))
-    except (TypeError, ValueError):
+    number = _card_number(payload.get("number", 0))
+    if number is None:
         return jsonify({"error": "scheda non valida"}), 400
     puzzle = next((p for p in issue.puzzles if p.number == number), None)
     if puzzle is None:
@@ -225,5 +293,35 @@ def not_found(_error):
     return render_template("missing.html", current=current_issue_id()), 404
 
 
+LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
+
+
+def server_settings(environ):
+    """Where to listen and whether to debug, as (host, port, debug).
+
+    The defaults are the safe ones: this machine only, debugger off. Listening on the
+    whole network is a choice (SETTIMANA_HOST=0.0.0.0), and so is the debugger
+    (SETTIMANA_DEBUG=1), but never both together: the debugger hands a Python console
+    to whoever can load an error page, so it is refused on any address another machine
+    can reach.
+    """
+    host = environ.get("SETTIMANA_HOST", "127.0.0.1").strip() or "127.0.0.1"
+    raw_port = environ.get("SETTIMANA_PORT", "5000")
+    try:
+        port = int(raw_port)
+    except ValueError:
+        raise SystemExit("SETTIMANA_PORT deve essere un numero di porta, non %r" % raw_port)
+    if not 0 <= port <= 65535:
+        raise SystemExit("SETTIMANA_PORT fuori intervallo: %d" % port)
+    debug = environ.get("SETTIMANA_DEBUG", "").strip().lower() in ("1", "true", "yes", "on")
+    if debug and host not in LOOPBACK_HOSTS:
+        raise SystemExit(
+            "SETTIMANA_DEBUG=1 e SETTIMANA_HOST=%s non possono stare insieme: il debugger "
+            "espone una console Python a chiunque raggiunga la pagina di errore. "
+            "Usa il debug solo su 127.0.0.1." % host)
+    return host, port, debug
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    _host, _port, _debug = server_settings(os.environ)
+    app.run(host=_host, port=_port, debug=_debug)
