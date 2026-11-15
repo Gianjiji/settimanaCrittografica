@@ -17,6 +17,10 @@ import storage
 from app import app
 from crypto_puzzles.fascicle import build_issue, current_issue_id, recent_issue_ids
 
+# These tests post far faster than a reader would; the request budget has its own
+# tests in test_rate_limit.py.
+app.config["RATE_LIMIT_ENABLED"] = False
+
 MIN_ATTEMPTS = 3
 
 # The browser these tests pretend to be. The review page is built from one reader's

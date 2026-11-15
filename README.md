@@ -16,14 +16,39 @@ python app.py
 
 Poi apri http://localhost:5000
 
+Senza altre indicazioni il server ascolta solo su questa macchina (`127.0.0.1`) e con il
+debugger spento.
+
 ### Usarlo dal telefono sulla stessa rete
+
+Va chiesto esplicitamente di ascoltare su tutta la rete:
 
 ```powershell
 Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.PrefixOrigin -ne "WellKnown" } | Select-Object IPAddress, InterfaceAlias
 New-NetFirewallRule -DisplayName "Settimana Crittografica" -Direction Inbound -LocalPort 5000 -Protocol TCP -Action Allow
+$env:SETTIMANA_HOST = "0.0.0.0"
+python app.py
 ```
 
 Dal telefono apri http://INDIRIZZO-IP:5000
+
+### Variabili d'ambiente
+
+| Variabile | Predefinito | Effetto |
+|---|---|---|
+| `SETTIMANA_HOST` | `127.0.0.1` | Indirizzo di ascolto. `0.0.0.0` per la rete locale. |
+| `SETTIMANA_PORT` | `5000` | Porta di ascolto. |
+| `SETTIMANA_DEBUG` | spento | `1` accende il debugger di Flask. Ammesso solo su `127.0.0.1`: il debugger offre una console Python a chiunque raggiunga una pagina di errore, quindi insieme a un indirizzo di rete il server si rifiuta di partire. |
+| `SETTIMANA_PROXY_HOPS` | `0` | Numero di proxy davanti al server (un tunnel conta 1). Serve a leggere l'indirizzo vero del lettore e a riconoscere l'https. Lasciare a 0 se il server è raggiunto direttamente. |
+
+### Tetto alle richieste
+
+Ogni risposta inviata scrive una riga nel registro e non c'è login, quindi le due API
+(`/api/verifica`, `/api/parola`) hanno un tetto per indirizzo: 40 richieste di fila, poi
+una al secondo. Oltre il tetto il server risponde `429` con `Retry-After` e non scrive
+nulla; la pagina lo segnala come risposta non verificata, non come risposta sbagliata.
+Dietro un tunnel impostare `SETTIMANA_PROXY_HOPS=1`, altrimenti tutti i lettori
+arrivano dallo stesso indirizzo e condividono un solo tetto.
 
 Attenzione: su http semplice il service worker non si registra, quindi niente installazione
 come app e niente uso offline. I browser considerano contesto sicuro solo https e localhost.
@@ -35,6 +60,7 @@ oppure Tailscale con il suo certificato). Il sito resta comunque usabile via htt
 ```
 app.py                     rotte Flask e API di verifica
 storage.py                 log dei tentativi su SQLite, alimenta il registro errori
+ratelimit.py               tetto alle richieste per indirizzo, in memoria
 crypto_puzzles/
   core.py                  modello Puzzle, aritmetica modulare, controllo risposte
   tables.py                liste chiuse di parole, primi, moduli, inversi
@@ -81,8 +107,9 @@ Conseguenze da conoscere:
   `Cookie` è un header proibito, quindi la richiesta che il worker mette in cache non lo
   porta con sé, il confronto imposto da `Vary` è fra due assenze e la copia offline viene
   ritrovata lo stesso. Verificato in Chrome, non solo dedotto.
-- Il cookie è `HttpOnly` e `SameSite=Lax`. Dietro HTTPS conviene aggiungere `secure=True`
-  in `remember_player` (`app.py`); su HTTP semplice il cookie non partirebbe.
+- Il cookie è `HttpOnly` e `SameSite=Lax`, e diventa `Secure` da solo quando la richiesta
+  arriva in https (dietro un tunnel serve `SETTIMANA_PROXY_HOPS=1` perché il server lo
+  sappia). Su HTTP semplice resta senza `Secure`, altrimenti non tornerebbe mai indietro.
 
 ## Le regole che tengono in piedi il progetto
 

@@ -43,6 +43,7 @@ sys.path.insert(0, %(root)r)
 import storage
 storage.DB_PATH = %(db)r
 from app import app
+app.config["RATE_LIMIT_ENABLED"] = %(rate_limit)r
 from werkzeug.serving import make_server
 server = make_server("127.0.0.1", 0, app, threaded=True)
 print(server.port, flush=True)
@@ -53,13 +54,17 @@ server.serve_forever()
 class Server:
     """The app on a port of its own, against the database it is told to use."""
 
-    def __init__(self, db_path):
+    def __init__(self, db_path, rate_limit=False):
+        # The request budget is off unless a test asks for it: these tests post in
+        # bursts no reader would, and the budget has tests of its own.
         self.db_path = db_path
+        self.rate_limit = rate_limit
         self.process = None
         self.port = None
 
     def start(self):
-        source = SERVER_SOURCE % {"root": ROOT, "db": self.db_path}
+        source = SERVER_SOURCE % {"root": ROOT, "db": self.db_path,
+                                  "rate_limit": self.rate_limit}
         self.process = subprocess.Popen(
             [sys.executable, "-c", source], cwd=ROOT,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
